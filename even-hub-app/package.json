@@ -1,0 +1,21 @@
+{
+  "name": "g2-external-vision-evenhub-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "pack": "npm run build && evenhub pack app.json dist -o g2-external-vision.ehpk"
+  },
+  "dependencies": {
+    "@evenrealities/even_hub_sdk": "^0.0.10"
+  },
+  "devDependencies": {
+    "@evenrealities/evenhub-cli": "^0.1.13",
+    "@evenrealities/evenhub-simulator": "^0.7.3",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  }
+}
