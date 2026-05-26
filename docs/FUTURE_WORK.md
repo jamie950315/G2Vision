@@ -25,7 +25,6 @@ This project is now useful without hardware through the hosted test page and cam
 
 ## 4. Backend hardening
 
-- Move the in-memory job store to a small persistent store if jobs need to survive process restarts.
 - Add request rate limits for `/api/test-image` and public app endpoints.
 - Add basic access control for the hosted `/test` page before sharing the URL widely.
 - Rotate the OpenAI API key that was used during initial manual testing.

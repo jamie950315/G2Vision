@@ -1,5 +1,6 @@
 import express, { type Request, type Response } from 'express'
 import cors from 'cors'
+import { fileURLToPath } from 'node:url'
 import { config, DEFAULT_PROMPT } from './config.js'
 import { TEST_PAGE_HTML } from './test-page.js'
 import { getTestPromptSettings, loadTestPrompt, saveTestPrompt } from './test-settings.js'
@@ -17,7 +18,7 @@ import {
 import { analyzeImageWithOpenAICompatibleEndpoint } from './vision.js'
 import type { Job } from './types.js'
 
-const app = express()
+export const app = express()
 
 function buildCorsOptions(): cors.CorsOptions {
   if (config.corsOrigin === '*') {
@@ -215,6 +216,11 @@ app.post(
       return
     }
 
+    if (job.status !== 'assigned') {
+      res.status(409).json({ error: `job is not ready for upload: ${job.status}` })
+      return
+    }
+
     const jpeg = req.body as Buffer
     if (!jpeg || jpeg.length < 1024) {
       updateJob(job.id, { status: 'error', error: 'empty or invalid jpeg upload' })
@@ -258,12 +264,16 @@ app.post(
 
 setInterval(cleanupOldJobs, 60_000).unref()
 
-loadTestPrompt()
-  .catch((error) => {
+export async function startServer(): Promise<void> {
+  await loadTestPrompt().catch((error) => {
     console.warn(`Could not load test page prompt: ${error instanceof Error ? error.message : String(error)}`)
   })
-  .finally(() => {
-    app.listen(config.port, () => {
-      console.log(`G2 external vision backend listening on ${config.port}`)
-    })
+
+  app.listen(config.port, () => {
+    console.log(`G2 external vision backend listening on ${config.port}`)
   })
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  void startServer()
+}

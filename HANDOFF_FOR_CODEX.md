@@ -126,6 +126,7 @@ backend/
   src/test-settings.ts
   src/types.ts
   src/vision.ts
+  src/server.test.ts
   scripts/camera-simulator.ts
   .env.example
   Dockerfile
@@ -198,6 +199,7 @@ Security notes:
 - Even Hub app API calls are unauthenticated in the MVP. Production should add per-user auth or a signed session if this becomes public.
 - The backend does not persist images. JPEG bytes are only used for the immediate vision request.
 - In-memory jobs expire after `JOB_TTL_MS`.
+- App-created camera uploads are accepted only while a job is `assigned`. After the first upload moves the job to `uploaded` / `analyzing`, duplicate uploads for the same job return `409` so the backend does not analyze the same job twice.
 
 ## Even Hub app notes
 
@@ -263,11 +265,23 @@ Backend local smoke test:
 cd backend
 cp .env.example .env
 npm install
+npm test
+npm run check
+npm run build
 npm run dev
 curl http://localhost:8787/health
 ./scripts/curl-create-job.sh
 ./scripts/curl-events.sh
 ```
+
+Hardware-free camera contract test:
+
+```bash
+cd backend
+CAMERA_TOKEN=test-token npm run simulate:camera -- --base-url http://127.0.0.1:8787 --mode all
+```
+
+`--mode all` covers app-created jobs, hardware-button captures, wrong camera token, unknown device, empty queue, invalid JPEG, and duplicate upload rejection.
 
 Hardware path:
 
@@ -310,20 +324,23 @@ evenhub pack app.json dist -o g2-external-vision.ehpk
 - Hosted `/test` page upload succeeded with an OpenAI vision response.
 - Prompt save and reload for the hosted `/test` page succeeded.
 - The backend service auto-restart path was tested by terminating the process and confirming systemd restarted it.
+- `backend`: integration tests were added for app-created jobs, hardware-button captures, events, wrong token, unknown device, empty queue, invalid JPEG, and duplicate upload rejection.
+- `backend`: `npm test`, `npm run check`, and `npm run build` succeeded after the integration test work.
+- `backend`: local server plus `npm run simulate:camera -- --mode all` succeeded without hardware.
+- `even-hub-app`: `npm run pack` succeeded after the integration test work.
 
 ## Known gaps and next actions
 
 1. I did not compile or flash the Arduino firmware. Verify board package pin aliases, especially `D1`, after opening Arduino IDE.
 2. Replace insecure TLS in firmware before field use.
 3. Rotate the OpenAI API key used during manual testing before wider sharing.
-4. Add persistent storage if button captures should remain available after backend restart.
-5. Add access control or rate limits before sharing the hosted test page widely.
-6. Add OTA update for firmware after MVP works.
-7. Add power modes. Current firmware keeps Wi-Fi awake for low latency and drains the battery faster.
-8. Add mechanical enclosure files after confirming lens angle and temple placement.
-9. Add a hardware shutter LED or haptic cue if privacy signaling is required.
-10. Consider lowering poll interval for battery or switching to WebSocket/MQTT after MVP stability.
+4. Add access control or rate limits before sharing the hosted test page widely.
+5. Add OTA update for firmware after MVP works.
+6. Add power modes. Current firmware keeps Wi-Fi awake for low latency and drains the battery faster.
+7. Add mechanical enclosure files after confirming lens angle and temple placement.
+8. Add a hardware shutter LED or haptic cue if privacy signaling is required.
+9. Consider lowering poll interval for battery or switching to WebSocket/MQTT after MVP stability.
 
 ## Recommended first Codex prompt
 
-Use this repository as the starting point. Install dependencies, typecheck backend and Even Hub app, fix compile errors, then add a small integration test for the backend job/event state machine. Preserve the no-phone-camera constraint and preserve the XIAO D1/GPIO2 hardware button capture path.
+Use this repository as the starting point. Install dependencies, run backend tests, typecheck backend and Even Hub app, and fix compile errors. Preserve the no-phone-camera constraint and preserve the XIAO D1/GPIO2 hardware button capture path.

@@ -77,6 +77,15 @@ The simulator covers both capture paths:
 - app-created job: `POST /api/capture` -> `GET /cam/next` -> `POST /cam/upload/:id`
 - hardware-button path: `POST /cam/button-capture`
 
+It can also run negative checks:
+
+```bash
+cd backend
+CAMERA_TOKEN=test-token npm run simulate:camera -- --base-url http://127.0.0.1:8787 --mode all
+```
+
+`--mode all` covers both successful paths plus wrong camera token, unknown device, empty queue, invalid JPEG, and duplicate upload rejection.
+
 If `OPENAI_API_KEY` is not configured, uploads still succeed and jobs end with the expected backend error: `OPENAI_API_KEY is not configured`. Pass a real JPEG with `--image ./photo.jpg` when testing against a real vision endpoint.
 
 ## Hosted manual test page

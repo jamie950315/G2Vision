@@ -164,3 +164,5 @@ CAMERA_TOKEN=test-token npm run simulate:camera -- --base-url http://127.0.0.1:8
 ```
 
 The default mode exercises both app-created capture jobs and external-button uploads. Use `--mode app-job` or `--mode button` to test one path. Use `--image ./photo.jpg` to upload a real JPEG.
+
+Use `--mode negative` to run only failure-path checks, or `--mode all` to run both successful paths and failure-path checks. The negative checks cover wrong camera token, unknown device, empty queue, invalid JPEG, and duplicate upload rejection.

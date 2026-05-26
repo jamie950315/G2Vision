@@ -119,3 +119,10 @@ export function getDebugState(): { jobs: number; queued: number; latestSeq: numb
 export function isTerminalStatus(status: JobStatus): boolean {
   return status === 'done' || status === 'error'
 }
+
+export function resetStoreForTests(): void {
+  jobs.clear()
+  pendingQueue.length = 0
+  events.length = 0
+  seq = 0
+}

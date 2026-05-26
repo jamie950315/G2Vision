@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 
-type Mode = 'app-job' | 'button' | 'both'
+type Mode = 'app-job' | 'button' | 'both' | 'negative' | 'all'
 
 type Options = {
   baseUrl: string
@@ -68,7 +68,7 @@ function parseArgs(argv: string[]): Options {
       options.deviceId = value
       index += 1
     } else if (arg === '--mode' && value) {
-      if (!['app-job', 'button', 'both'].includes(value)) {
+      if (!['app-job', 'button', 'both', 'negative', 'all'].includes(value)) {
         throw new Error(`Unsupported --mode: ${value}`)
       }
       options.mode = value as Mode
@@ -109,7 +109,7 @@ Options:
   --base-url <url>      Backend URL. Default: SIM_BASE_URL, PUBLIC_BASE_URL, or http://127.0.0.1:8787
   --token <token>       Camera bearer token. Default: CAMERA_TOKEN
   --device-id <id>      Camera device id. Default: CAMERA_DEVICE_ID or xiao-g2-001
-  --mode <mode>         app-job, button, or both. Default: both
+  --mode <mode>         app-job, button, both, negative, or all. Default: both
   --image <path>        JPEG file to upload. Default: generated smoke-test payload
   --prompt <text>       Prompt for the app-created capture job
   --wait-ms <ms>        Time to wait before checking terminal status. Default: 3000
@@ -155,11 +155,128 @@ async function requestMaybeJson<T>(url: string, init?: RequestInit): Promise<{ s
   }
 }
 
+async function requestExpectStatus<T>(
+  expectedStatus: number,
+  url: string,
+  init?: RequestInit,
+): Promise<{ status: number; body?: T }> {
+  const response = await fetch(url, init)
+  const text = await response.text()
+
+  if (response.status !== expectedStatus) {
+    throw new Error(
+      `${init?.method || 'GET'} ${url} expected ${expectedStatus}, got ${response.status}: ${text}`,
+    )
+  }
+
+  return {
+    status: response.status,
+    body: text ? (JSON.parse(text) as T) : undefined,
+  }
+}
+
 function cameraHeaders(options: Options): HeadersInit {
   return {
     Authorization: `Bearer ${options.token}`,
     'X-Device-Id': options.deviceId,
   }
+}
+
+async function runNegativeChecks(options: Options, jpeg: Buffer): Promise<void> {
+  await requestExpectStatus<{ error: string }>(
+    401,
+    `${options.baseUrl}/cam/next?device_id=${encodeURIComponent(options.deviceId)}`,
+    {
+      headers: {
+        Authorization: 'Bearer intentionally-wrong-token',
+        'X-Device-Id': options.deviceId,
+      },
+    },
+  )
+  console.log('negative check passed: wrong camera token is rejected')
+
+  await requestExpectStatus<{ error: string }>(
+    403,
+    `${options.baseUrl}/cam/next?device_id=unknown-device`,
+    {
+      headers: {
+        Authorization: `Bearer ${options.token}`,
+        'X-Device-Id': 'unknown-device',
+      },
+    },
+  )
+  console.log('negative check passed: unknown device is rejected')
+
+  await requestExpectStatus<void>(
+    204,
+    `${options.baseUrl}/cam/next?device_id=${encodeURIComponent(options.deviceId)}`,
+    { headers: cameraHeaders(options) },
+  )
+  console.log('negative check passed: empty queue returns 204')
+
+  const invalidCapture = await requestJson<CaptureResponse>(`${options.baseUrl}/api/capture`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: options.prompt }),
+  })
+  const invalidNext = await requestMaybeJson<NextJobResponse>(
+    `${options.baseUrl}/cam/next?device_id=${encodeURIComponent(options.deviceId)}`,
+    { headers: cameraHeaders(options) },
+  )
+  if (invalidNext.status !== 200 || !invalidNext.body) {
+    throw new Error(`Expected invalid-upload job assignment, got HTTP ${invalidNext.status}`)
+  }
+  if (invalidNext.body.request_id !== invalidCapture.id) {
+    throw new Error(`Invalid-upload check received unexpected job ${invalidNext.body.request_id}`)
+  }
+  await requestExpectStatus<{ error: string }>(
+    400,
+    `${options.baseUrl}${invalidNext.body.upload_path}?device_id=${encodeURIComponent(options.deviceId)}`,
+    {
+      method: 'POST',
+      headers: {
+        ...cameraHeaders(options),
+        'Content-Type': 'image/jpeg',
+      },
+      body: new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], { type: 'image/jpeg' }),
+    },
+  )
+  console.log('negative check passed: invalid JPEG payload is rejected')
+
+  const duplicateCapture = await requestJson<CaptureResponse>(`${options.baseUrl}/api/capture`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: options.prompt }),
+  })
+  const duplicateNext = await requestMaybeJson<NextJobResponse>(
+    `${options.baseUrl}/cam/next?device_id=${encodeURIComponent(options.deviceId)}`,
+    { headers: cameraHeaders(options) },
+  )
+  if (duplicateNext.status !== 200 || !duplicateNext.body) {
+    throw new Error(`Expected duplicate-upload job assignment, got HTTP ${duplicateNext.status}`)
+  }
+  if (duplicateNext.body.request_id !== duplicateCapture.id) {
+    throw new Error(`Duplicate-upload check received unexpected job ${duplicateNext.body.request_id}`)
+  }
+
+  const duplicateUploadUrl = `${options.baseUrl}${duplicateNext.body.upload_path}?device_id=${encodeURIComponent(options.deviceId)}`
+  await requestJson<{ ok: boolean; id: string; bytes: number }>(duplicateUploadUrl, {
+    method: 'POST',
+    headers: {
+      ...cameraHeaders(options),
+      'Content-Type': 'image/jpeg',
+    },
+    body: new Blob([new Uint8Array(jpeg)], { type: 'image/jpeg' }),
+  })
+  await requestExpectStatus<{ error: string }>(409, duplicateUploadUrl, {
+    method: 'POST',
+    headers: {
+      ...cameraHeaders(options),
+      'Content-Type': 'image/jpeg',
+    },
+    body: new Blob([new Uint8Array(jpeg)], { type: 'image/jpeg' }),
+  })
+  console.log('negative check passed: duplicate upload is rejected')
 }
 
 async function runAppJob(options: Options, jpeg: Buffer): Promise<string> {
@@ -232,15 +349,22 @@ async function main(): Promise<void> {
   const jpeg = await readJpegPayload(options.image)
   const jobIds: string[] = []
 
-  if (options.mode === 'app-job' || options.mode === 'both') {
+  if (options.mode === 'app-job' || options.mode === 'both' || options.mode === 'all') {
     jobIds.push(await runAppJob(options, jpeg))
   }
 
-  if (options.mode === 'button' || options.mode === 'both') {
+  if (options.mode === 'button' || options.mode === 'both' || options.mode === 'all') {
     jobIds.push(await runButtonCapture(options, jpeg))
   }
 
-  await printFinalState(options, jobIds)
+  if (jobIds.length > 0) {
+    await printFinalState(options, jobIds)
+  }
+
+  if (options.mode === 'negative' || options.mode === 'all') {
+    await runNegativeChecks(options, jpeg)
+  }
+
   console.log('camera simulator completed')
 }
 
