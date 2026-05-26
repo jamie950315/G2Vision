@@ -67,6 +67,11 @@ async function initG2Page(): Promise<EvenBridge> {
 
 async function runEvenHubCapture(): Promise<void> {
   if (busy) return
+  if (activeJobId) {
+    await show(formatStatus('Capture already pending', `Job: ${activeJobId.slice(0, 8)}\nWaiting for image upload...`))
+    return
+  }
+
   busy = true
   try {
     await show(formatStatus('Creating capture job...', 'Waiting for XIAO ESP32S3 Sense.'))
@@ -118,7 +123,7 @@ async function pollEvents(): Promise<void> {
 const g2Bridge = await initG2Page()
 
 g2Bridge.onEvenHubEvent((event) => {
-  const type = event.textEvent?.eventType
+  const type = event.textEvent?.eventType ?? event.sysEvent?.eventType ?? event.jsonData?.eventType
   const isPress = type === OsEventTypeList.CLICK_EVENT || type === undefined
   const isDoublePress = type === OsEventTypeList.DOUBLE_CLICK_EVENT
 
