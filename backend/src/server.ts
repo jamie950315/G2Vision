@@ -1,6 +1,8 @@
 import express, { type Request, type Response } from 'express'
 import cors from 'cors'
 import { config, DEFAULT_PROMPT } from './config.js'
+import { TEST_PAGE_HTML } from './test-page.js'
+import { getTestPromptSettings, loadTestPrompt, saveTestPrompt } from './test-settings.js'
 import {
   assignNextQueuedJob,
   cleanupOldJobs,
@@ -91,6 +93,23 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, version: '0.1.0', state: getDebugState() })
 })
 
+app.get('/test', (_req, res) => {
+  res.type('html').send(TEST_PAGE_HTML)
+})
+
+app.get('/api/test-prompt', (_req, res) => {
+  res.json(getTestPromptSettings())
+})
+
+app.put('/api/test-prompt', express.json({ limit: '16kb' }), async (req, res) => {
+  try {
+    const savedPrompt = await saveTestPrompt(req.body?.prompt)
+    res.json({ ok: true, savedPrompt, defaultPrompt: DEFAULT_PROMPT })
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : String(error) })
+  }
+})
+
 app.post('/api/capture', express.json({ limit: '64kb' }), (req, res) => {
   const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt : DEFAULT_PROMPT
   const job = createJob({ source: 'even_hub', prompt, enqueue: true })
@@ -140,6 +159,25 @@ app.get('/api/latest', (req, res) => {
     updatedAt: job.updatedAt,
     latestSeq: getLatestSeq(),
   })
+})
+
+app.post('/api/test-image', express.raw({ type: 'image/jpeg', limit: '8mb' }), (req, res) => {
+  const jpeg = req.body as Buffer
+  if (!jpeg || jpeg.length < 1024) {
+    res.status(400).json({ error: 'empty or invalid jpeg upload' })
+    return
+  }
+
+  const job = createJob({
+    source: 'test_page',
+    deviceId: 'browser-test',
+    prompt: req.header('x-test-prompt') || getTestPromptSettings().savedPrompt,
+    enqueue: false,
+  })
+
+  updateJob(job.id, { status: 'uploaded', uploadedAt: Date.now(), deviceId: 'browser-test' })
+  res.json({ ok: true, id: job.id, bytes: jpeg.length, latestSeq: getLatestSeq() })
+  void analyzeAndStore(job, jpeg)
 })
 
 app.get('/cam/next', (req, res) => {
@@ -220,6 +258,12 @@ app.post(
 
 setInterval(cleanupOldJobs, 60_000).unref()
 
-app.listen(config.port, () => {
-  console.log(`G2 external vision backend listening on ${config.port}`)
-})
+loadTestPrompt()
+  .catch((error) => {
+    console.warn(`Could not load test page prompt: ${error instanceof Error ? error.message : String(error)}`)
+  })
+  .finally(() => {
+    app.listen(config.port, () => {
+      console.log(`G2 external vision backend listening on ${config.port}`)
+    })
+  })

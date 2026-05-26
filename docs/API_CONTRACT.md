@@ -72,6 +72,39 @@ Response:
 
 Optional convenience endpoint for debugging. Returns the most recently updated job.
 
+## Test-page endpoints
+
+These endpoints power the hosted manual test page at `/test`.
+
+### `GET /api/test-prompt`
+
+Returns the original default prompt and the currently saved test-page prompt.
+
+### `PUT /api/test-prompt`
+
+Saves a prompt for future test-page use. The saved prompt is stored on the backend and is not committed to Git.
+
+Request:
+
+```json
+{
+  "prompt": "Describe the image in one sentence."
+}
+```
+
+### `POST /api/test-image`
+
+Uploads a JPEG from the hosted test page. The optional `X-Test-Prompt` header overrides the saved prompt for that upload.
+
+Headers:
+
+```http
+Content-Type: image/jpeg
+X-Test-Prompt: Describe the image in one sentence.
+```
+
+Body: raw JPEG bytes.
+
 ## Camera-facing endpoints
 
 All camera-facing endpoints require:
@@ -120,3 +153,14 @@ Body: raw JPEG bytes.
 Uploads a JPEG captured by the XIAO hardware button. The backend creates a new job with `source = "xiao_button"`, sends the image to the vision endpoint, and emits events for the Even Hub app to display.
 
 Headers and body are the same as `/cam/upload/:id`.
+
+## Hardware-free simulator
+
+The backend includes a simulator for validating the camera contract without the XIAO ESP32S3 Sense:
+
+```bash
+cd backend
+CAMERA_TOKEN=test-token npm run simulate:camera -- --base-url http://127.0.0.1:8787
+```
+
+The default mode exercises both app-created capture jobs and external-button uploads. Use `--mode app-job` or `--mode button` to test one path. Use `--image ./photo.jpg` to upload a real JPEG.

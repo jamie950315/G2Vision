@@ -13,6 +13,8 @@ firmware/xiao_esp32s3_sense_g2vision/
                                  Arduino firmware for Seeed XIAO ESP32S3 Sense
 docs/API_CONTRACT.md             App/camera/backend API contract
 docs/HARDWARE_NOTES.md           Hardware selection and wiring notes
+docs/FUTURE_WORK.md              Remaining validation and hardening work
+docs/DEPLOYMENT.md               Local hosted deployment notes
 HANDOFF_FOR_CODEX.md             Complete continuation brief for Codex
 AGENTS.md                        Coding guidance for Codex agents
 ```
@@ -52,6 +54,43 @@ Enable PSRAM.
 Upload.
 ```
 
+## Without hardware
+
+You can test the camera/backend contract before the XIAO ESP32S3 Sense is available.
+
+```bash
+cd backend
+npm install
+npm run build
+PORT=8787 CAMERA_TOKEN=test-token npm start
+```
+
+In another shell:
+
+```bash
+cd backend
+CAMERA_TOKEN=test-token npm run simulate:camera -- --base-url http://127.0.0.1:8787
+```
+
+The simulator covers both capture paths:
+
+- app-created job: `POST /api/capture` -> `GET /cam/next` -> `POST /cam/upload/:id`
+- hardware-button path: `POST /cam/button-capture`
+
+If `OPENAI_API_KEY` is not configured, uploads still succeed and jobs end with the expected backend error: `OPENAI_API_KEY is not configured`. Pass a real JPEG with `--image ./photo.jpg` when testing against a real vision endpoint.
+
+## Hosted manual test page
+
+The local deployment exposes a manual test page at:
+
+```text
+https://g2vision.0ruka.dev/test
+```
+
+The page lets a user drag an image, click or tap the upload area to choose an image, remove the current image, edit the prompt, save the prompt on the backend, revert to the saved prompt, and reset to the original default prompt.
+
+The test page still preserves the no-phone-camera policy. It does not use `getUserMedia` and its file picker does not use the `capture` attribute.
+
 ## Hardware MVP
 
 - Seeed Studio XIAO ESP32S3 Sense.
@@ -59,6 +98,10 @@ Upload.
 - 150-300 mAh LiPo for wearable testing.
 - Backend reachable over HTTPS.
 - Even Hub app whitelist must match the backend origin.
+
+## Future work
+
+See `docs/FUTURE_WORK.md` for the remaining hardware bring-up, TLS, Even Hub validation, backend hardening, and release tasks.
 
 ## No phone camera policy
 

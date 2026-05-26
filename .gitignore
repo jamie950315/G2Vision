@@ -10,5 +10,6 @@ npm-debug.log*
 firmware/**/secrets.h
 
 backend/dist/
+backend/data/
 even-hub-app/dist/
 even-hub-app/*.ehpk

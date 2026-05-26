@@ -122,8 +122,11 @@ backend/
   src/config.ts
   src/server.ts
   src/store.ts
+  src/test-page.ts
+  src/test-settings.ts
   src/types.ts
   src/vision.ts
+  scripts/camera-simulator.ts
   .env.example
   Dockerfile
 
@@ -145,6 +148,8 @@ firmware/xiao_esp32s3_sense_g2vision/
 
 docs/
   API_CONTRACT.md
+  DEPLOYMENT.md
+  FUTURE_WORK.md
   HARDWARE_NOTES.md
 ```
 
@@ -167,6 +172,25 @@ OPENAI_IMAGE_DETAIL=
 ```
 
 Endpoints are documented in `docs/API_CONTRACT.md`.
+
+Hosted manual test page:
+
+- `GET /test` serves a browser test page for manual image uploads.
+- The upload area supports drag-and-drop and click/tap file selection.
+- The page can edit the prompt used for test uploads.
+- `Save` persists the prompt to backend-local ignored storage.
+- `Revert` restores the saved prompt into the editor.
+- `Reset` restores the original default prompt into the editor.
+- Revert and Reset show their target prompt in a small hover toast.
+- The page has no `getUserMedia` call and no file input `capture` attribute.
+
+Local-only test prompt storage:
+
+```text
+backend/data/test-page-settings.json
+```
+
+This file is ignored by Git.
 
 Security notes:
 
@@ -280,17 +304,25 @@ evenhub pack app.json dist -o g2-external-vision.ehpk
 - `even-hub-app`: `npm install --ignore-scripts --no-audit --no-fund` succeeded after setting currently available npm package versions.
 - `even-hub-app`: `npm run build` succeeded.
 - `even-hub-app`: `npx evenhub pack app.json dist -o g2-external-vision.ehpk` succeeded.
+- Hosted backend is running locally through `g2vision-backend.service` and Cloudflare Tunnel at `https://g2vision.0ruka.dev`.
+- `https://g2vision.0ruka.dev/health` returned healthy JSON.
+- Hardware-free camera simulator succeeded against the public URL with a real JPEG.
+- Hosted `/test` page upload succeeded with an OpenAI vision response.
+- Prompt save and reload for the hosted `/test` page succeeded.
+- The backend service auto-restart path was tested by terminating the process and confirming systemd restarted it.
 
 ## Known gaps and next actions
 
 1. I did not compile or flash the Arduino firmware. Verify board package pin aliases, especially `D1`, after opening Arduino IDE.
 2. Replace insecure TLS in firmware before field use.
-3. Add persistent storage if button captures should remain available after backend restart.
-4. Add OTA update for firmware after MVP works.
-5. Add power modes. Current firmware keeps Wi-Fi awake for low latency and drains the battery faster.
-6. Add mechanical enclosure files after confirming lens angle and temple placement.
-7. Add a hardware shutter LED or haptic cue if privacy signaling is required.
-8. Consider lowering poll interval for battery or switching to WebSocket/MQTT after MVP stability.
+3. Rotate the OpenAI API key used during manual testing before wider sharing.
+4. Add persistent storage if button captures should remain available after backend restart.
+5. Add access control or rate limits before sharing the hosted test page widely.
+6. Add OTA update for firmware after MVP works.
+7. Add power modes. Current firmware keeps Wi-Fi awake for low latency and drains the battery faster.
+8. Add mechanical enclosure files after confirming lens angle and temple placement.
+9. Add a hardware shutter LED or haptic cue if privacy signaling is required.
+10. Consider lowering poll interval for battery or switching to WebSocket/MQTT after MVP stability.
 
 ## Recommended first Codex prompt
 

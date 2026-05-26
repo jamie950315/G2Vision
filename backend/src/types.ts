@@ -6,7 +6,7 @@ export type JobStatus =
   | 'done'
   | 'error'
 
-export type JobSource = 'even_hub' | 'xiao_button'
+export type JobSource = 'even_hub' | 'xiao_button' | 'test_page'
 
 export interface Job {
   id: string
