@@ -1,5 +1,6 @@
 export type JobStatus = 'queued' | 'assigned' | 'uploaded' | 'analyzing' | 'done' | 'error'
-export type JobSource = 'even_hub' | 'xiao_button'
+export type JobSource = 'even_hub' | 'xiao_button' | 'test_page'
+export type AppStatusValue = 0 | 1 | 2
 
 export interface JobEvent {
   seq: number
@@ -20,6 +21,29 @@ export interface EventsResponse {
 export interface CaptureResponse {
   id: string
   status: JobStatus
+  latestSeq: number
+}
+
+export interface ResponseHistoryItem {
+  id: string
+  jobId: string
+  source: JobSource
+  title: string
+  result: string
+  error?: string
+  createdAt: number
+}
+
+export interface AppStateResponse {
+  status: AppStatusValue
+  activeJobId?: string
+  source?: JobSource
+  jobStatus?: JobStatus
+  result?: string
+  error?: string
+  updatedAt: number
+  expiresAt: number
+  history: ResponseHistoryItem[]
   latestSeq: number
 }
 
@@ -49,4 +73,14 @@ export async function createCaptureJob(prompt = DEFAULT_PROMPT): Promise<Capture
 export async function fetchEvents(afterSeq: number): Promise<EventsResponse> {
   const response = await fetch(`${API_BASE}/api/events?after=${encodeURIComponent(String(afterSeq))}`)
   return parseJsonOrThrow<EventsResponse>(response)
+}
+
+export async function fetchAppState(): Promise<AppStateResponse> {
+  const response = await fetch(`${API_BASE}/api/app-state`)
+  return parseJsonOrThrow<AppStateResponse>(response)
+}
+
+export async function clearAppState(): Promise<AppStateResponse> {
+  const response = await fetch(`${API_BASE}/api/app-state/clear`, { method: 'POST' })
+  return parseJsonOrThrow<AppStateResponse>(response)
 }

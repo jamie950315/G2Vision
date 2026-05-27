@@ -46,6 +46,24 @@ export async function analyzeImageWithOpenAICompatibleEndpoint(job: Job, jpeg: B
     imageUrl.detail = config.openaiImageDetail
   }
 
+  const requestBody: Record<string, unknown> = {
+    model: config.openaiModel,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: job.prompt },
+          { type: 'image_url', image_url: imageUrl },
+        ],
+      },
+    ],
+    max_completion_tokens: config.openaiMaxCompletionTokens,
+  }
+
+  if (config.openaiReasoningEffort) {
+    requestBody.reasoning_effort = config.openaiReasoningEffort
+  }
+
   try {
     const response = await fetch(`${config.openaiBaseUrl}/chat/completions`, {
       method: 'POST',
@@ -54,19 +72,7 @@ export async function analyzeImageWithOpenAICompatibleEndpoint(job: Job, jpeg: B
         Authorization: `Bearer ${config.openaiApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: config.openaiModel,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: job.prompt },
-              { type: 'image_url', image_url: imageUrl },
-            ],
-          },
-        ],
-        max_tokens: 450,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {

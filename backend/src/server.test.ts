@@ -2,7 +2,12 @@ import assert from 'node:assert/strict'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import type { Server } from 'node:http'
 import type { Express } from 'express'
-import type { resetStoreForTests as resetStoreForTestsType } from './store.js'
+import type {
+  createJob as createJobType,
+  getAppStateSnapshot as getAppStateSnapshotType,
+  resetStoreForTests as resetStoreForTestsType,
+  updateJob as updateJobType,
+} from './store.js'
 
 const TEST_TOKEN = 'test-token'
 const TEST_DEVICE_ID = 'xiao-g2-001'
@@ -13,6 +18,9 @@ let server: Server
 let baseUrl = ''
 let app: Express
 let resetStoreForTests: typeof resetStoreForTestsType
+let getAppStateSnapshot: typeof getAppStateSnapshotType
+let createJob: typeof createJobType
+let updateJob: typeof updateJobType
 
 function makeJpeg(size = 2048): Blob {
   const header = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10])
@@ -53,6 +61,7 @@ async function waitForStatus(jobId: string, status: string): Promise<Json> {
 }
 
 before(async () => {
+  process.env.NODE_ENV = 'test'
   process.env.CAMERA_TOKEN = TEST_TOKEN
   process.env.CAMERA_DEVICE_ID = TEST_DEVICE_ID
   process.env.OPENAI_API_KEY = ''
@@ -61,6 +70,9 @@ before(async () => {
   const storeModule = await import('./store.js')
   app = serverModule.app
   resetStoreForTests = storeModule.resetStoreForTests
+  getAppStateSnapshot = storeModule.getAppStateSnapshot
+  createJob = storeModule.createJob
+  updateJob = storeModule.updateJob
 
   await new Promise<void>((resolve) => {
     server = app.listen(0, '127.0.0.1', resolve)
@@ -93,6 +105,12 @@ describe('backend camera integration flow', () => {
     assert.equal(capture.body.status, 'queued')
     assert.equal(typeof capture.body.id, 'string')
 
+    const initialState = await requestJson('/api/app-state')
+    assert.equal(initialState.response.status, 200)
+    assert.equal(initialState.body.status, 1)
+    assert.equal(initialState.body.activeJobId, capture.body.id)
+    assert.equal(initialState.body.jobStatus, 'queued')
+
     const next = await requestJson(`/cam/next?device_id=${TEST_DEVICE_ID}`, {
       headers: cameraHeaders(),
     })
@@ -118,12 +136,25 @@ describe('backend camera integration flow', () => {
     assert.equal(result.source, 'even_hub')
     assert.equal(result.error, 'OPENAI_API_KEY is not configured')
 
+    const doneState = await requestJson('/api/app-state')
+    assert.equal(doneState.response.status, 200)
+    assert.equal(doneState.body.status, 2)
+    assert.equal(doneState.body.activeJobId, capture.body.id)
+    assert.equal(doneState.body.jobStatus, 'error')
+    assert.equal(doneState.body.history.length, 1)
+    assert.equal(doneState.body.history[0].jobId, capture.body.id)
+
     const events = await requestJson('/api/events?after=0')
     assert.equal(events.response.status, 200)
     const statuses = events.body.events
       .filter((event: Json) => event.jobId === capture.body.id)
       .map((event: Json) => event.status)
     assert.deepEqual(statuses, ['queued', 'assigned', 'uploaded', 'analyzing', 'error'])
+
+    const clearedState = await requestJson('/api/app-state/clear', { method: 'POST' })
+    assert.equal(clearedState.response.status, 200)
+    assert.equal(clearedState.body.status, 0)
+    assert.equal(clearedState.body.history.length, 1)
   })
 
   it('accepts a hardware button capture without an app-created job', async () => {
@@ -143,11 +174,116 @@ describe('backend camera integration flow', () => {
     assert.equal(result.source, 'xiao_button')
     assert.equal(result.error, 'OPENAI_API_KEY is not configured')
 
+    const appState = await requestJson('/api/app-state')
+    assert.equal(appState.response.status, 200)
+    assert.equal(appState.body.status, 2)
+    assert.equal(appState.body.activeJobId, upload.body.id)
+    assert.equal(appState.body.history[0].jobId, upload.body.id)
+
     const events = await requestJson('/api/events?after=0')
     const statuses = events.body.events
       .filter((event: Json) => event.jobId === upload.body.id)
       .map((event: Json) => event.status)
     assert.deepEqual(statuses, ['queued', 'uploaded', 'analyzing', 'error'])
+  })
+})
+
+describe('backend app recovery state', () => {
+  it('does not restore an abandoned waiting job after the user returns to main screen', async () => {
+    const capture = await requestJson('/api/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    assert.equal(capture.response.status, 200)
+
+    const clear = await requestJson('/api/app-state/clear', { method: 'POST' })
+    assert.equal(clear.response.status, 200)
+    assert.equal(clear.body.status, 0)
+
+    const next = await requestJson(`/cam/next?device_id=${TEST_DEVICE_ID}`, {
+      headers: cameraHeaders(),
+    })
+    assert.equal(next.response.status, 200)
+
+    const upload = await requestJson(`${next.body.upload_path}?device_id=${TEST_DEVICE_ID}`, {
+      method: 'POST',
+      headers: {
+        ...cameraHeaders(),
+        'Content-Type': 'image/jpeg',
+      },
+      body: makeJpeg(),
+    })
+    assert.equal(upload.response.status, 200)
+    await waitForStatus(capture.body.id, 'error')
+
+    const appState = await requestJson('/api/app-state')
+    assert.equal(appState.response.status, 200)
+    assert.equal(appState.body.status, 0)
+    assert.equal(appState.body.history.length, 0)
+  })
+
+  it('expires the visible app status after ten minutes but keeps response history', async () => {
+    const upload = await requestJson(`/cam/button-capture?device_id=${TEST_DEVICE_ID}`, {
+      method: 'POST',
+      headers: {
+        ...cameraHeaders(),
+        'Content-Type': 'image/jpeg',
+      },
+      body: makeJpeg(),
+    })
+    assert.equal(upload.response.status, 200)
+    await waitForStatus(upload.body.id, 'error')
+
+    const currentState = await requestJson('/api/app-state')
+    assert.equal(currentState.body.status, 2)
+    assert.equal(currentState.body.history.length, 1)
+
+    const futureState = getAppStateSnapshot(Date.now() + 10 * 60 * 1000 + 1)
+    assert.equal(futureState.status, 0)
+    assert.equal(futureState.history.length, 1)
+    assert.equal(futureState.history[0].jobId, upload.body.id)
+  })
+
+  it('keeps only the newest twenty response history entries', async () => {
+    const jobIds: string[] = []
+
+    for (let index = 0; index < 21; index += 1) {
+      const upload = await requestJson(`/cam/button-capture?device_id=${TEST_DEVICE_ID}`, {
+        method: 'POST',
+        headers: {
+          ...cameraHeaders(),
+          'Content-Type': 'image/jpeg',
+        },
+        body: makeJpeg(),
+      })
+      assert.equal(upload.response.status, 200)
+      jobIds.push(String(upload.body.id))
+      await waitForStatus(upload.body.id, 'error')
+    }
+
+    const appState = await requestJson('/api/app-state')
+    assert.equal(appState.response.status, 200)
+    assert.equal(appState.body.history.length, 20)
+    assert.equal(appState.body.history[0].jobId, jobIds[20])
+    assert.equal(appState.body.history.some((item: Json) => item.jobId === jobIds[0]), false)
+  })
+
+  it('stores successful response text as the latest response and history title', () => {
+    const job = createJob({ source: 'even_hub', enqueue: false })
+    updateJob(job.id, {
+      status: 'done',
+      result: 'A successful response with useful details for the title.',
+      doneAt: Date.now(),
+    })
+
+    const appState = getAppStateSnapshot()
+    assert.equal(appState.status, 2)
+    assert.equal(appState.activeJobId, job.id)
+    assert.equal(appState.result, 'A successful response with useful details for the title.')
+    assert.equal(appState.history.length, 1)
+    assert.equal(appState.history[0].jobId, job.id)
+    assert.equal(appState.history[0].title, 'A successful response with useful de...')
   })
 })
 

@@ -33,3 +33,28 @@ export interface JobEvent {
   error?: string
   createdAt: number
 }
+
+export type AppStatusValue = 0 | 1 | 2
+
+export interface ResponseHistoryItem {
+  id: string
+  jobId: string
+  source: JobSource
+  title: string
+  result: string
+  error?: string
+  createdAt: number
+}
+
+export interface AppStateSnapshot {
+  status: AppStatusValue
+  activeJobId?: string
+  source?: JobSource
+  jobStatus?: JobStatus
+  result?: string
+  error?: string
+  updatedAt: number
+  expiresAt: number
+  history: ResponseHistoryItem[]
+  latestSeq: number
+}

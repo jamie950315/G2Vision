@@ -21,6 +21,9 @@ This project is now useful without hardware through the hosted test page and cam
 - Confirm G2/R1 input creates a capture job.
 - Confirm polling receives app-triggered and hardware-button results.
 - Confirm result text is readable on the glasses display.
+- Confirm app restart restores `status = 1` waiting screens and `status = 2` response screens for up to 10 minutes.
+- Confirm scroll up/down on the main screen browses response history and single tap opens the selected response.
+- Confirm double tap from waiting/result/history returns to the main screen and does not let an abandoned pending job reappear later.
 - Re-check `@evenrealities/even_hub_sdk` exported names when upgrading the SDK.
 
 ## 4. Backend hardening
@@ -29,6 +32,8 @@ This project is now useful without hardware through the hosted test page and cam
 - Add basic access control for the hosted `/test` page before sharing the URL widely.
 - Rotate the OpenAI API key that was used during initial manual testing.
 - Add structured request logs without storing image bytes.
+- Move app recovery state and response history out of in-memory storage if backend restarts must preserve the latest response.
+- Decide whether response history should become per-device, per-user, or account-scoped before adding multiple users or multiple G2 devices.
 
 ## 5. Test page improvements
 
@@ -40,4 +45,4 @@ This project is now useful without hardware through the hosted test page and cam
 
 - Keep generated `dist/`, `.ehpk`, `.env`, and local prompt settings out of Git.
 - Publish `.ehpk` files as GitHub release artifacts when the app is ready to distribute.
-- Run the backend build, Even Hub build, package step, public `/health` check, and camera simulator before tagging a release.
+- Run backend tests, backend build, Even Hub package, public `/health` check, camera simulator, Even Hub simulator recovery/history checks, and at least one real OpenAI vision call before tagging a release.

@@ -6,8 +6,10 @@ import { TEST_PAGE_HTML } from './test-page.js'
 import { getTestPromptSettings, loadTestPrompt, saveTestPrompt } from './test-settings.js'
 import {
   assignNextQueuedJob,
+  clearAppState,
   cleanupOldJobs,
   createJob,
+  getAppStateSnapshot,
   getDebugState,
   getEventsAfter,
   getJob,
@@ -160,6 +162,14 @@ app.get('/api/latest', (req, res) => {
     updatedAt: job.updatedAt,
     latestSeq: getLatestSeq(),
   })
+})
+
+app.get('/api/app-state', (_req, res) => {
+  res.json(getAppStateSnapshot())
+})
+
+app.post('/api/app-state/clear', (_req, res) => {
+  res.json(clearAppState())
 })
 
 app.post('/api/test-image', express.raw({ type: 'image/jpeg', limit: '8mb' }), (req, res) => {

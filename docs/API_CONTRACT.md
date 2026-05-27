@@ -72,6 +72,52 @@ Response:
 
 Optional convenience endpoint for debugging. Returns the most recently updated job.
 
+### `GET /api/app-state`
+
+Returns the latest app recovery state plus response history. The Even Hub app calls this on startup so accidental app exits can return to the waiting or response screen.
+
+Status values:
+
+- `0`: main screen.
+- `1`: capture was triggered and a response is still pending.
+- `2`: response or error is ready to show.
+
+`status = 1` and `status = 2` expire back to `0` after 10 minutes. History remains available until the fixed history list rotates it out.
+
+Response:
+
+```json
+{
+  "status": 2,
+  "activeJobId": "uuid",
+  "source": "even_hub",
+  "jobStatus": "done",
+  "result": "AI response text",
+  "error": null,
+  "updatedAt": 1760000000000,
+  "expiresAt": 1760000600000,
+  "history": [
+    {
+      "id": "uuid",
+      "jobId": "uuid",
+      "source": "even_hub",
+      "title": "AI response text",
+      "result": "AI response text",
+      "createdAt": 1760000000000
+    }
+  ],
+  "latestSeq": 10
+}
+```
+
+History contains the newest 20 terminal responses. The oldest item is removed when the list grows past 20.
+
+### `POST /api/app-state/clear`
+
+Clears the visible recovery state back to `status = 0` and returns the same shape as `GET /api/app-state`.
+
+The Even Hub app calls this when the user intentionally double taps back to the main screen. If the cleared state was still waiting for a response, the backend also dismisses that pending job for app recovery so its later result does not reappear unexpectedly. Existing history is preserved.
+
 ## Test-page endpoints
 
 These endpoints power the hosted manual test page at `/test`.
