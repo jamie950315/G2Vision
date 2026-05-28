@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "test": "tsx --test src/**/*.test.ts",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "pack": "npm run build && evenhub pack app.json dist -o g2-external-vision.ehpk"
@@ -15,6 +16,8 @@
   "devDependencies": {
     "@evenrealities/evenhub-cli": "^0.1.13",
     "@evenrealities/evenhub-simulator": "^0.7.3",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.3"
   }

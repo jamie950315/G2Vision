@@ -221,6 +221,7 @@ Main behavior:
 - Single press from the capture/result screen starts a fresh capture and ignores any older pending result.
 - Scroll up/down on the main screen enters response history. The selected item is shown with a timestamp and short title.
 - Single press while browsing history opens the selected response without changing backend recovery state.
+- Scroll up/down on a response screen moves through long AI responses page by page.
 - It polls `/api/events?after=...` every 1.5 seconds.
 - It displays any app-triggered job status and any XIAO button-triggered result.
 
@@ -318,8 +319,17 @@ Packaging:
 
 ```bash
 cd even-hub-app
-npm run build
-evenhub pack app.json dist -o g2-external-vision.ehpk
+npm run pack
+```
+
+Mac simulator validation. Start a backend or mock API on the Mac first; port `18798` is the example backend origin below.
+
+```bash
+ssh 100.114.172.82
+PATH=$HOME/.tools/node22/bin:$HOME/.bun/bin:$PATH
+cd ~/g2-external-vision-handoff-sim/even-hub-app
+VITE_API_BASE=http://127.0.0.1:18798 npm run dev -- --host 127.0.0.1 --port 5176
+node node_modules/@evenrealities/evenhub-simulator/bin/index.js --no-glow --automation-port 9901 http://127.0.0.1:5176
 ```
 
 ## Validation already performed in this project environment
@@ -328,7 +338,8 @@ evenhub pack app.json dist -o g2-external-vision.ehpk
 - `backend`: `npm run check` and `npm run build` succeeded.
 - `even-hub-app`: `npm install --ignore-scripts --no-audit --no-fund` succeeded after setting currently available npm package versions.
 - `even-hub-app`: `npm run build` succeeded.
-- `even-hub-app`: `npx evenhub pack app.json dist -o g2-external-vision.ehpk` succeeded.
+- `even-hub-app`: `npm test` covers response paging and Even Hub event classification, including scroll top and scroll bottom handling.
+- `even-hub-app`: `npm run pack` succeeded and produced `g2-external-vision.ehpk`.
 - Hosted backend is running locally through `g2vision-backend.service` and Cloudflare Tunnel at `https://g2vision.0ruka.dev`.
 - `https://g2vision.0ruka.dev/health` returned healthy JSON.
 - Hardware-free camera simulator succeeded against the public URL with a real JPEG.
@@ -339,6 +350,7 @@ evenhub pack app.json dist -o g2-external-vision.ehpk
 - `backend`: `npm test`, `npm run check`, and `npm run build` succeeded after the integration test work.
 - `backend`: local server plus `npm run simulate:camera -- --mode all` succeeded without hardware.
 - `even-hub-app`: `npm run pack` succeeded after the integration test work.
+- Mac Even Hub simulator validation on `100.114.172.82` confirmed a long response can advance from page `1/8` to `2/8` and `3/8` using `up`, with no simulator console errors. The simulator automation `down` action can return `ok` without emitting a down event, so `SCROLL_BOTTOM_EVENT` behavior is covered by app tests.
 
 ## Known gaps and next actions
 

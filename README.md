@@ -41,6 +41,7 @@ Main screen history:
 - Scroll up/down browses previous responses.
 - Each history item shows a timestamp and a short title from the first response words.
 - Single tap opens the selected history response.
+- On a response screen, swipe up/down scrolls through long AI responses page by page.
 - Single tap on the normal main screen starts a new capture.
 - Double tap from waiting/result/history returns to the main screen.
 - The backend keeps the newest 20 responses and drops the oldest entry after that.
@@ -110,15 +111,33 @@ CAMERA_TOKEN=test-token npm run simulate:camera -- --base-url http://127.0.0.1:8
 
 If `OPENAI_API_KEY` is not configured, uploads still succeed and jobs end with the expected backend error: `OPENAI_API_KEY is not configured`. Pass a real JPEG with `--image ./photo.jpg` when testing against a real vision endpoint.
 
-Even Hub simulator validation can be run on a supported desktop platform:
+Even Hub simulator validation should be run on the Mac host because the local Linux ARM64 environment does not support the official simulator binary. Start a backend or mock API on the Mac first; port `18798` is the example backend origin below.
 
 ```bash
-cd even-hub-app
-VITE_API_BASE=http://<backend-host>:8787 npm run dev -- --port 5181
-evenhub-simulator http://<app-host>:5181 --automation-port 9899 --no-glow
+ssh 100.114.172.82
+PATH=$HOME/.tools/node22/bin:$HOME/.bun/bin:$PATH
+cd ~/g2-external-vision-handoff-sim/even-hub-app
+VITE_API_BASE=http://127.0.0.1:18798 npm run dev -- --host 127.0.0.1 --port 5176
 ```
 
-Use the simulator automation API to send `click`, `double_click`, `up`, and `down` actions and verify app recovery, history browsing, and capture triggers.
+In another Mac-side shell, start the simulator through the package wrapper:
+
+```bash
+PATH=$HOME/.tools/node22/bin:$HOME/.bun/bin:$PATH
+cd ~/g2-external-vision-handoff-sim/even-hub-app
+node node_modules/@evenrealities/evenhub-simulator/bin/index.js --no-glow --automation-port 9901 http://127.0.0.1:5176
+```
+
+Use the simulator automation API to send `click`, `double_click`, `up`, and `down` actions and verify app recovery, history browsing, response-page scrolling, and capture triggers:
+
+```bash
+curl http://127.0.0.1:9901/api/ping
+curl -X POST http://127.0.0.1:9901/api/input \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"up"}'
+curl http://127.0.0.1:9901/api/screenshot/webview -o /tmp/webview.png
+curl http://127.0.0.1:9901/api/console
+```
 
 ## Hosted manual test page
 

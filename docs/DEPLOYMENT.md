@@ -90,12 +90,14 @@ cd backend
 CAMERA_TOKEN=<token-from-backend-env> npm run simulate:camera -- --base-url https://g2vision.0ruka.dev --image /path/to/test.jpg
 ```
 
-For app recovery and history validation, run the Even Hub app against the backend and drive it with the simulator automation API:
+For app recovery, history, and response scrolling validation, run the Even Hub app against the backend on the Mac simulator host. The local Linux ARM64 environment does not support the official simulator binary.
 
 ```bash
-cd even-hub-app
-VITE_API_BASE=https://g2vision.0ruka.dev npm run dev -- --port 5181
-evenhub-simulator http://127.0.0.1:5181 --automation-port 9899 --no-glow
+ssh 100.114.172.82
+PATH=$HOME/.tools/node22/bin:$HOME/.bun/bin:$PATH
+cd ~/g2-external-vision-handoff-sim/even-hub-app
+VITE_API_BASE=https://g2vision.0ruka.dev npm run dev -- --host 127.0.0.1 --port 5176
+node node_modules/@evenrealities/evenhub-simulator/bin/index.js --no-glow --automation-port 9901 http://127.0.0.1:5176
 ```
 
 Minimum simulator checks:
@@ -105,8 +107,11 @@ Minimum simulator checks:
 - `double_click` clears visible state back to `status = 0` while preserving history.
 - `up` or `down` on the main screen opens history browsing.
 - `click` while browsing history opens the selected response without changing backend state.
+- `up` and `down` from a long response screen move through response pages without creating a capture job.
 - `click` from a response screen starts a new capture immediately.
 - Restarting the app while backend has `status = 1` or `status = 2` restores that screen.
 - A pending job abandoned with `double_click` must not reappear after the camera later uploads it.
+
+Simulator automation can return `ok` for an input even when the simulator does not emit an app event. Check `/api/console` and `/api/screenshot/webview` after each gesture, especially for `down`.
 
 Also run one real OpenAI-backed upload with a JPEG from `testImages/` before field testing. Confirm the job reaches `done`, `GET /api/app-state` returns `status = 2`, and `history[0]` contains the successful response.
