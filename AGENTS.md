@@ -10,7 +10,7 @@ Work as if this repo is an MVP hardware/software integration package.
 - Keep Even Hub network calls limited to the backend origin listed in `app.json`.
 - Preserve the external hardware button path. A D1/GPIO2 button press must be able to capture and upload without a G2/R1 event.
 
-## Priority tasks for Codex
+## Priority tasks
 
 1. Install dependencies and run TypeScript checks for `backend` and `even-hub-app`.
 2. Verify current `@evenrealities/even_hub_sdk` exported names. Adjust imports in `even-hub-app/src/main.ts` if SDK changed.
