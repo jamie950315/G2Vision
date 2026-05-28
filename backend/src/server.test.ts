@@ -283,7 +283,21 @@ describe('backend app recovery state', () => {
     assert.equal(appState.result, 'A successful response with useful details for the title.')
     assert.equal(appState.history.length, 1)
     assert.equal(appState.history[0].jobId, job.id)
-    assert.equal(appState.history[0].title, 'A successful response with useful de...')
+    assert.equal(appState.history[0].title, 'A successful response with useful details for the title.')
+  })
+
+  it('stores successful LaTeX response text as readable app state and history text', () => {
+    const job = createJob({ source: 'even_hub', enqueue: false })
+    updateJob(job.id, {
+      status: 'done',
+      result: String.raw`Formula: \frac{a+b}{c+d} and \(x_i\)\(y_i\).`,
+      doneAt: Date.now(),
+    })
+
+    const appState = getAppStateSnapshot()
+    assert.equal(appState.result, 'Formula: (a + b) / (c + d) and x_(i) y_(i).')
+    assert.equal(appState.history[0].result, 'Formula: (a + b) / (c + d) and x_(i) y_(i).')
+    assert.equal(appState.history[0].title, 'Formula: (a + b) / (c + d) and x_(i) y_(i).')
   })
 })
 

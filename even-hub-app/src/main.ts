@@ -16,7 +16,8 @@ import {
   type ResponseHistoryItem,
 } from './api'
 import { classifyEvenHubEvent, eventDebugInfo } from './events'
-import { buildResponsePages, clampPageIndex, formatStatus, setDomStatus, trimForG2 } from './render'
+import { nextHistoryIndex } from './history-nav'
+import { formatStatus, setDomStatus, trimForG2 } from './render'
 
 const MAIN_ID = 1
 const MAIN_NAME = 'main'
@@ -33,8 +34,6 @@ let appView: AppView = 'main'
 let busy = false
 let historyItems: ResponseHistoryItem[] = []
 let historyIndex = 0
-let responsePages: string[] = []
-let responsePageIndex = 0
 const ignoredJobIds = new Set<string>()
 type EvenBridge = Awaited<ReturnType<typeof waitForEvenAppBridge>>
 let bridge: EvenBridge | undefined
@@ -66,11 +65,6 @@ function mainText(): string {
     'External Vision',
     `Single tap G2/R1 or press XIAO button to capture.\n${historyLine}\nNo phone camera is used.`,
   )
-}
-
-function resetResponseScroll(): void {
-  responsePages = []
-  responsePageIndex = 0
 }
 
 function applyHistoryFromState(state: AppStateResponse): void {
@@ -108,21 +102,17 @@ async function showMainScreen(options: { clearRemote?: boolean } = {}): Promise<
   }
   activeJobId = undefined
   appView = 'main'
-  resetResponseScroll()
   await show(mainText())
 }
 
 async function showCaptureStatus(title: string, body = ''): Promise<void> {
   appView = 'capture'
-  resetResponseScroll()
   await show(formatStatus(title, body))
 }
 
-async function showResponseScreen(title: string, body: string, index = responsePageIndex): Promise<void> {
-  responsePages = buildResponsePages(title, body)
-  responsePageIndex = clampPageIndex(index, responsePages.length)
+async function showResponseScreen(title: string, body: string): Promise<void> {
   appView = 'response'
-  await show(responsePages[responsePageIndex] || formatStatus(title, body))
+  await show(formatStatus(title, body))
 }
 
 function pad2(value: number): string {
@@ -159,7 +149,6 @@ async function showHistoryScreen(index = historyIndex): Promise<void> {
   historyIndex = Math.min(Math.max(index, 0), historyItems.length - 1)
   appView = 'history'
   activeJobId = undefined
-  resetResponseScroll()
   await show(historyText())
 }
 
@@ -169,12 +158,14 @@ async function browseHistory(direction: number): Promise<void> {
     return
   }
 
-  if (appView !== 'history') {
-    await showHistoryScreen(0)
-    return
-  }
-
-  await showHistoryScreen(historyIndex + direction)
+  await showHistoryScreen(
+    nextHistoryIndex({
+      currentIndex: historyIndex,
+      direction,
+      isInHistory: appView === 'history',
+      total: historyItems.length,
+    }),
+  )
 }
 
 async function openSelectedHistory(): Promise<void> {
@@ -187,23 +178,6 @@ async function openSelectedHistory(): Promise<void> {
   activeJobId = item.jobId
   const title = item.error ? 'Vision error' : 'Vision result'
   await showResponseScreen(title, responseBody(item))
-}
-
-async function scrollResponse(direction: number): Promise<void> {
-  debugEvent('response scroll requested', {
-    direction,
-    appView,
-    responsePageIndex,
-    pageCount: responsePages.length,
-  })
-
-  if (appView !== 'response' || responsePages.length <= 1) return
-
-  const nextPageIndex = clampPageIndex(responsePageIndex + direction, responsePages.length)
-  if (nextPageIndex === responsePageIndex) return
-  responsePageIndex = nextPageIndex
-  debugEvent('response scroll applied', { responsePageIndex })
-  await show(responsePages[responsePageIndex])
 }
 
 function waitingBodyForStatus(status?: JobStatus, jobId?: string): string {
@@ -346,13 +320,9 @@ g2Bridge.onEvenHubEvent((event) => {
     void openSelectedHistory()
   } else if (action === 'press') {
     void runEvenHubCapture()
-  } else if (action === 'scrollUp' && appView === 'response') {
-    void scrollResponse(1)
-  } else if (action === 'scrollDown' && appView === 'response') {
-    void scrollResponse(-1)
-  } else if (action === 'scrollUp' && (appView === 'main' || appView === 'history')) {
-    void browseHistory(1)
   } else if (action === 'scrollDown' && (appView === 'main' || appView === 'history')) {
+    void browseHistory(1)
+  } else if (action === 'scrollUp' && (appView === 'main' || appView === 'history')) {
     void browseHistory(-1)
   } else if (action === 'doublePress' && (appView === 'capture' || appView === 'history' || appView === 'response')) {
     void showMainScreen({ clearRemote: true })

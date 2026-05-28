@@ -38,13 +38,17 @@ The Even Hub app restores this state on startup. If the previous session exited 
 
 Main screen history:
 
-- Scroll up/down browses previous responses.
-- Each history item shows a timestamp and a short title from the first response words.
+- Swipe down from the main screen opens the newest history item, then continues forward through older items.
+- Swipe up from the main screen opens the oldest available history item, then continues backward toward newer items.
+- Inside history, swipe down moves to the next item and swipe up moves to the previous item.
+- Each history item shows a timestamp and a longer title from the first response words.
 - Single tap opens the selected history response.
-- On a response screen, swipe up/down scrolls through long AI responses page by page.
+- On a response screen, swipe up/down scrolls the single long AI response text. The app no longer splits responses into numbered pages.
 - Single tap on the normal main screen starts a new capture.
 - Double tap from waiting/result/history returns to the main screen.
 - The backend keeps the newest 20 responses and drops the oldest entry after that.
+
+AI response text is normalized for the glasses display. Common LaTeX and raw math snippets are converted into readable plain text / Unicode where possible, so formulas are easier to read on the G2 text container. The prompt no longer imposes a short 300-character answer limit; app display is capped only by the Even Hub text payload limits.
 
 ## Fast start
 
@@ -128,7 +132,7 @@ cd ~/g2-external-vision-handoff-sim/even-hub-app
 node node_modules/@evenrealities/evenhub-simulator/bin/index.js --no-glow --automation-port 9901 http://127.0.0.1:5176
 ```
 
-Use the simulator automation API to send `click`, `double_click`, `up`, and `down` actions and verify app recovery, history browsing, response-page scrolling, and capture triggers:
+Use the simulator automation API to send `click`, `double_click`, `up`, and `down` actions and verify app recovery, history browsing, long-response scrolling, and capture triggers:
 
 ```bash
 curl http://127.0.0.1:9901/api/ping

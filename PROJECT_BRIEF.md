@@ -206,7 +206,10 @@ Security notes:
 - `GET /api/app-state` returns app recovery status: `0` main, `1` waiting, `2` response ready. Waiting/response status expires back to `0` after 10 minutes.
 - `POST /api/app-state/clear` is called when the user intentionally returns to the main screen. If a pending job was abandoned, its later result is ignored for app recovery.
 - The response history keeps the newest 20 terminal responses and drops the oldest item when full.
+- Response history titles are generated from normalized response text and capped at 96 characters plus an ellipsis when needed.
 - App-created camera uploads are accepted only while a job is `assigned`. After the first upload moves the job to `uploaded` / `analyzing`, duplicate uploads for the same job return `409` so the backend does not analyze the same job twice.
+- Vision responses are normalized before app display and history storage. Common LaTeX and raw math notation is converted into readable plain text / Unicode where possible.
+- The default prompt no longer asks for answers under 300 Chinese characters, so the app can show fuller responses.
 
 ## Even Hub app notes
 
@@ -219,9 +222,11 @@ Main behavior:
 - Single press or `undefined` event triggers backend `/api/capture`.
 - Double press returns from the waiting/result/history screen to the app main screen.
 - Single press from the capture/result screen starts a fresh capture and ignores any older pending result.
-- Scroll up/down on the main screen enters response history. The selected item is shown with a timestamp and short title.
+- Swipe down on the main screen enters history at the first item; additional down swipes advance through history.
+- Swipe up on the main screen enters history at the last item; additional up swipes move backward through history.
+- The selected history item is shown with a timestamp and longer generated title.
 - Single press while browsing history opens the selected response without changing backend recovery state.
-- Scroll up/down on a response screen moves through long AI responses page by page.
+- Swipe up/down on a response screen scrolls one long response text. The app does not split responses into numbered pages.
 - It polls `/api/events?after=...` every 1.5 seconds.
 - It displays any app-triggered job status and any XIAO button-triggered result.
 

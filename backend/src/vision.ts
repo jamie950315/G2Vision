@@ -1,8 +1,9 @@
 import { config } from './config.js'
+import { normalizeMathForDisplay } from './math-text.js'
 import type { Job } from './types.js'
 
 function compactText(text: string): string {
-  return text
+  return normalizeMathForDisplay(text)
     .replace(/\r/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()

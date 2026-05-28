@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import { config, DEFAULT_PROMPT } from './config.js'
+import { normalizeMathForDisplay } from './math-text.js'
 import type {
   AppStateSnapshot,
   AppStatusValue,
@@ -19,6 +20,7 @@ let seq = 0
 
 const APP_STATE_TTL_MS = 10 * 60 * 1000
 const MAX_RESPONSE_HISTORY = 20
+const HISTORY_TITLE_MAX_CHARS = 96
 
 type AppStateCore = Omit<AppStateSnapshot, 'history' | 'latestSeq'>
 
@@ -65,7 +67,7 @@ function toAppStatus(job: Job): AppStatusValue {
 function makeHistoryTitle(text: string): string {
   const compact = text.replace(/\s+/g, ' ').trim()
   if (!compact) return 'Vision response'
-  return compact.length > 36 ? `${compact.slice(0, 36)}...` : compact
+  return compact.length > HISTORY_TITLE_MAX_CHARS ? `${compact.slice(0, HISTORY_TITLE_MAX_CHARS)}...` : compact
 }
 
 function addHistoryFromJob(job: Job): void {
@@ -151,7 +153,10 @@ export function updateJob(
   const job = jobs.get(id)
   if (!job) return undefined
 
-  Object.assign(job, patch, { updatedAt: Date.now() })
+  const safePatch = { ...patch }
+  if (typeof safePatch.result === 'string') safePatch.result = normalizeMathForDisplay(safePatch.result)
+
+  Object.assign(job, safePatch, { updatedAt: Date.now() })
   pushEvent(job)
   return job
 }

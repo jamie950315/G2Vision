@@ -32,7 +32,7 @@ function readReasoningEffort(name: string, fallback = '', options: { preferEnvFi
 }
 
 export const DEFAULT_PROMPT =
-  'Use Traditional Chinese (Taiwan). Analyze the photo from the external camera. Describe the important visual facts, read any visible text, mention likely risks when relevant, and give one concrete next action. Keep the answer under 300 Chinese characters.'
+  'Use Traditional Chinese (Taiwan). Analyze the photo from the external camera. Describe the important visual facts, read any visible text, mention likely risks when relevant, and give one concrete next action.'
 
 export const config = {
   port: readInt('PORT', 8787),

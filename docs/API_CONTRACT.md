@@ -30,6 +30,8 @@ Response:
 
 Returns job status and result text.
 
+When a job finishes, the backend normalizes common LaTeX and raw math notation into readable plain text / Unicode before storing the result and emitting events. The vision prompt is allowed to return full answers; it no longer asks the model to keep responses under 300 Chinese characters.
+
 Response:
 
 ```json
@@ -110,7 +112,7 @@ Response:
 }
 ```
 
-History contains the newest 20 terminal responses. The oldest item is removed when the list grows past 20.
+History contains the newest 20 terminal responses. The oldest item is removed when the list grows past 20. Each history title is generated from the start of the normalized response text and is capped at 96 characters plus an ellipsis when needed.
 
 ### `POST /api/app-state/clear`
 

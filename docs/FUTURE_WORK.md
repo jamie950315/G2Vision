@@ -22,8 +22,9 @@ This project is now useful without hardware through the hosted test page and cam
 - Confirm polling receives app-triggered and hardware-button results.
 - Confirm result text is readable on the glasses display.
 - Confirm app restart restores `status = 1` waiting screens and `status = 2` response screens for up to 10 minutes.
-- Confirm scroll up/down on the main screen browses response history and single tap opens the selected response.
-- Confirm scroll up/down on a long response screen pages through the AI response without starting a new capture.
+- Confirm main-screen history entry behavior: swipe down opens the first history item and advances; swipe up opens the last history item and moves backward.
+- Confirm swipe up/down on a long response screen scrolls the single long AI response without starting a new capture.
+- Confirm math-heavy answers remain readable after LaTeX / raw math normalization on the glasses display.
 - Confirm double tap from waiting/result/history returns to the main screen and does not let an abandoned pending job reappear later.
 - Re-check `@evenrealities/even_hub_sdk` exported names when upgrading the SDK.
 
@@ -46,4 +47,4 @@ This project is now useful without hardware through the hosted test page and cam
 
 - Keep generated `dist/`, `.ehpk`, `.env`, and local prompt settings out of Git.
 - Publish `.ehpk` files as GitHub release artifacts when the app is ready to distribute.
-- Run backend tests, backend build, Even Hub app tests, Even Hub package, public `/health` check, camera simulator, Mac Even Hub simulator recovery/history/response-scroll checks, and at least one real OpenAI vision call before tagging a release.
+- Run backend tests, backend build, Even Hub app tests, Even Hub package, public `/health` check, camera simulator, Mac Even Hub simulator recovery/history/long-response-scroll checks, and at least one real OpenAI vision call before tagging a release.

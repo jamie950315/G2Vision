@@ -16,14 +16,14 @@ describe('EvenHub event classification', () => {
     )
   })
 
-  it('maps scroll top to forward response scrolling', () => {
+  it('maps scroll top to upward navigation', () => {
     assert.equal(
       classifyEvenHubEvent({ textEvent: { eventType: OsEventTypeList.SCROLL_TOP_EVENT } } as EvenHubEvent),
       'scrollUp',
     )
   })
 
-  it('maps scroll bottom to backward response scrolling', () => {
+  it('maps scroll bottom to downward navigation', () => {
     assert.equal(
       classifyEvenHubEvent({ jsonData: { eventType: 'SCROLL_BOTTOM_EVENT' } } as EvenHubEvent),
       'scrollDown',

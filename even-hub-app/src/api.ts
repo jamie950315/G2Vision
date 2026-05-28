@@ -51,7 +51,7 @@ const DEFAULT_API_BASE = 'https://g2vision.0ruka.dev'
 export const API_BASE = (import.meta.env.VITE_API_BASE || DEFAULT_API_BASE).replace(/\/$/, '')
 
 const DEFAULT_PROMPT =
-  'Use Traditional Chinese (Taiwan). Analyze the photo from the external camera. Describe important visual facts, read any visible text, mention relevant risks, and give one concrete next action. Keep the answer under 300 Chinese characters.'
+  'Use Traditional Chinese (Taiwan). Analyze the photo from the external camera. Describe important visual facts, read any visible text, mention relevant risks, and give one concrete next action.'
 
 async function parseJsonOrThrow<T>(response: Response): Promise<T> {
   if (!response.ok) {

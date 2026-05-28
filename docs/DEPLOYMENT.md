@@ -90,7 +90,7 @@ cd backend
 CAMERA_TOKEN=<token-from-backend-env> npm run simulate:camera -- --base-url https://g2vision.0ruka.dev --image /path/to/test.jpg
 ```
 
-For app recovery, history, and response scrolling validation, run the Even Hub app against the backend on the Mac simulator host. The local Linux ARM64 environment does not support the official simulator binary.
+For app recovery, history, and long-response scrolling validation, run the Even Hub app against the backend on the Mac simulator host. The local Linux ARM64 environment does not support the official simulator binary.
 
 ```bash
 ssh 100.114.172.82
@@ -105,9 +105,10 @@ Minimum simulator checks:
 - `click` from main creates `status = 1`.
 - Uploading a camera image moves backend app state to `status = 2`.
 - `double_click` clears visible state back to `status = 0` while preserving history.
-- `up` or `down` on the main screen opens history browsing.
+- `down` on the main screen opens the first history item; additional `down` actions advance through history.
+- `up` on the main screen opens the last history item; additional `up` actions move backward through history.
 - `click` while browsing history opens the selected response without changing backend state.
-- `up` and `down` from a long response screen move through response pages without creating a capture job.
+- `up` and `down` from a long response screen scroll the single long response text without creating a capture job.
 - `click` from a response screen starts a new capture immediately.
 - Restarting the app while backend has `status = 1` or `status = 2` restores that screen.
 - A pending job abandoned with `double_click` must not reappear after the camera later uploads it.
