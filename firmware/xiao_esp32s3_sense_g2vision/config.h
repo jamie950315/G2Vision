@@ -16,6 +16,7 @@
 
 #define POLL_INTERVAL_MS 700
 #define WIFI_RECONNECT_INTERVAL_MS 5000
+#define WIFI_CONNECT_TIMEOUT_MS 20000
 #define HTTP_TIMEOUT_MS 20000
 
 // SVGA is a practical default for cloud vision: readable enough with small upload size.

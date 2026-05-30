@@ -45,12 +45,14 @@ void connectWiFi() {
 
   Serial.print("Connecting WiFi to ");
   Serial.println(WIFI_SSID);
+  WiFi.disconnect(true);
+  delay(200);
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   unsigned long start = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - start < 12000) {
+  while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_CONNECT_TIMEOUT_MS) {
     delay(250);
     Serial.print('.');
   }
