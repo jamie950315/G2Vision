@@ -64,7 +64,7 @@ Mount the XIAO Sense on the right temple of the G2 frame. Put the camera near th
 
 For first wearable testing, use 150-300 mAh LiPo. Seeed's docs list battery webcam average around 3.8 V / about 155 mA and image capture peak around 3.8 V / about 366 mA for XIAO ESP32S3 Sense. This makes 150 mAh enough for short demos and 300 mAh better for repeated field testing.
 
-The current firmware keeps Wi-Fi awake and polls the backend every 2 seconds for low-latency MVP behavior. This is good for bring-up but should be measured before final battery sizing.
+The current firmware keeps Wi-Fi awake and polls the backend every 5 seconds for low-latency MVP behavior. This is good for bring-up but should be measured before final battery sizing.
 
 ## Pins to avoid
 

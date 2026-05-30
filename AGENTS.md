@@ -19,6 +19,11 @@ Work as if this repo is an MVP hardware/software integration package.
 5. Replace firmware `USE_INSECURE_TLS = true` with CA validation before field testing.
 6. Package Even Hub app with `evenhub pack app.json dist -o g2-external-vision.ehpk`.
 
+## XIAO firmware workflow
+
+- XIAO ESP32S3 Sense firmware builds, flashing, and ESP32/Arduino toolchain work happen on the user's Mac.
+- Do not install ESP32 board support, Arduino cores, PlatformIO, or related firmware build tools on this Linux machine unless the user explicitly asks for it.
+
 ## Even Hub simulator on Mac
 
 - The local Linux ARM64 environment does not support the official Even Hub simulator binary. For simulator validation, SSH to the Mac host at `100.114.172.82`.
