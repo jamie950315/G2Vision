@@ -1,12 +1,12 @@
 # Future work
 
-This project is now useful without hardware through the hosted test page and camera simulator. The remaining work should focus on moving from software validation to a reliable hardware MVP.
+This project now has a working hardware MVP. The hosted test page, camera simulator, real XIAO firmware, and real G2/R1 capture path have all been exercised. Remaining work should focus on field hardening, battery behavior, enclosure design, and release packaging.
 
 ## 1. Hardware bring-up
 
-- Flash the XIAO ESP32S3 Sense firmware.
-- Confirm serial logs for Wi-Fi connection, camera initialization, polling, button press detection, capture, and upload.
-- Verify the D1 / GPIO2 button path can capture and upload without an Even Hub or R1 event.
+- Run a longer stability pass: 10 consecutive G2/R1 captures, 3 XIAO button captures, then one capture after 10 minutes of idle polling.
+- Record RSSI values from the `Polling backend: no job, RSSI ... dBm` heartbeat during home Wi-Fi and wearable tests.
+- Verify the D1 / GPIO2 button path can capture and upload without an Even Hub or R1 event after the latest polling stability changes.
 - Test at least one real wearable mounting position on the G2 frame and record any wiring or enclosure changes in `docs/HARDWARE_NOTES.md`.
 
 ## 2. TLS and field safety
@@ -17,10 +17,9 @@ This project is now useful without hardware through the hosted test page and cam
 
 ## 3. Even Hub app validation
 
-- Install the packaged Even Hub app on a real device or simulator.
-- Confirm G2/R1 input creates a capture job.
-- Confirm polling receives app-triggered and hardware-button results.
-- Confirm result text is readable on the glasses display.
+- Package and install the `.ehpk` build through the intended release path, not only the dev server QR workflow.
+- Re-run G2/R1 capture validation from the packaged app.
+- Confirm hardware-button results appear on the glasses while the packaged app is open.
 - Confirm app restart restores `status = 1` waiting screens and `status = 2` response screens for up to 10 minutes.
 - Confirm main-screen history entry behavior: swipe down opens the first history item and advances; swipe up opens the last history item and moves backward.
 - Confirm swipe up/down on a long response screen scrolls the single long AI response without starting a new capture.

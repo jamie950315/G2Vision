@@ -1,6 +1,6 @@
 # Even Realities G2 external vision camera
 
-Date: 2026-05-25
+Date: 2026-05-31
 
 ## Project goal
 
@@ -29,6 +29,34 @@ XIAO physical button press
 ```
 
 The app layer controls display and G2/R1 input. The external XIAO module owns image capture. The backend owns API secrets, job coordination, CORS, and vision endpoint calls.
+
+## Current verified MVP status
+
+The primary real-device workflow has been validated:
+
+- XIAO ESP32S3 Sense connects successfully on a home Wi-Fi network.
+- G2/R1 press in the Even Hub app creates a backend job.
+- XIAO polling receives the job without requiring reset.
+- XIAO captures and uploads JPEG to the hosted backend.
+- The backend sends the image to the vision endpoint and stores the result.
+- The Even Hub app displays the AI result on the glasses.
+
+The firmware now prints a low-frequency polling heartbeat:
+
+```text
+Polling backend: no job, RSSI ... dBm
+```
+
+When a G2/R1-created job is available, the expected serial sequence includes:
+
+```text
+Received backend job: ...
+Handling backend job: ...
+Uploading JPEG: ... bytes
+Upload status: 200
+```
+
+The firmware uses one HTTPS client per request and disables connection reuse. This fixed a real-device issue where the XIAO would only upload a queued job after a reset.
 
 ## Source documentation reviewed
 
@@ -252,11 +280,13 @@ Behavior:
 
 - Connects to Wi-Fi.
 - Initializes XIAO ESP32S3 Sense camera using Seeed pin mapping.
-- Polls `/cam/next` every 700 ms.
+- Polls `/cam/next` every 2 seconds.
+- Prints an idle polling heartbeat about every 10 seconds with Wi-Fi RSSI.
 - Reads external button on D1/GPIO2 with debounce.
 - Captures JPEG as SVGA, JPEG quality 12.
 - Uploads app jobs to `/cam/upload/:id`.
 - Uploads hardware button captures to `/cam/button-capture`.
+- Creates a fresh secure HTTP client for each backend request and closes it after use.
 
 Arduino setup:
 
@@ -307,9 +337,10 @@ Hardware path:
 3. Flash firmware.
 4. Open serial monitor at 115200.
 5. Confirm Wi-Fi connected and `G2 external vision camera firmware ready`.
-6. Press the physical button.
-7. Confirm firmware logs upload status 2xx.
-8. Open Even Hub app and confirm event polling displays result.
+6. Wait for `Polling backend: no job, RSSI ... dBm` to confirm ongoing polling.
+7. Press the physical button.
+8. Confirm firmware logs upload status 2xx.
+9. Open Even Hub app and confirm event polling displays result.
 
 G2/R1 path:
 
@@ -317,8 +348,9 @@ G2/R1 path:
 2. Start Even Hub app dev server.
 3. Use `evenhub qr --url "http://<dev-machine-lan-ip>:5173"` for hardware sideloading.
 4. Press G2/R1.
-5. Confirm backend job goes queued -> assigned -> uploaded -> analyzing -> done.
-6. Confirm G2 displays the result.
+5. Confirm XIAO serial monitor shows `Received backend job`, `Handling backend job`, and upload status 2xx.
+6. Confirm backend job goes queued -> assigned -> uploaded -> analyzing -> done.
+7. Confirm G2 displays the result.
 
 Packaging:
 
@@ -356,18 +388,21 @@ node node_modules/@evenrealities/evenhub-simulator/bin/index.js --no-glow --auto
 - `backend`: local server plus `npm run simulate:camera -- --mode all` succeeded without hardware.
 - `even-hub-app`: `npm run pack` succeeded after the integration test work.
 - Mac Even Hub simulator validation on `100.114.172.82` confirmed a long response can advance from page `1/8` to `2/8` and `3/8` using `up`, with no simulator console errors. The simulator automation `down` action can return `ok` without emitting a down event, so `SCROLL_BOTTOM_EVENT` behavior is covered by app tests.
+- XIAO ESP32S3 Sense was flashed and connected successfully on a home Wi-Fi network.
+- Real G2/R1 capture flow succeeded end to end: glasses trigger -> backend job -> XIAO polling -> JPEG upload -> AI analysis -> result displayed on glasses.
+- Firmware polling stability was fixed after a real-device issue where a queued job was only uploaded after XIAO reset.
+- Updated firmware serial heartbeat confirms the XIAO is still polling while idle.
 
 ## Known gaps and next actions
 
-1. Arduino firmware has not been compiled or flashed yet. Verify board package pin aliases, especially `D1`, after opening Arduino IDE.
-2. Replace insecure TLS in firmware before field use.
-3. Rotate the OpenAI API key used during manual testing before wider sharing.
-4. Add access control or rate limits before sharing the hosted test page widely.
-5. Add OTA update for firmware after MVP works.
-6. Add power modes. Current firmware keeps Wi-Fi awake for low latency and drains the battery faster.
-7. Add mechanical enclosure files after confirming lens angle and temple placement.
-8. Add a hardware shutter LED or haptic cue if privacy signaling is required.
-9. Consider lowering poll interval for battery or switching to WebSocket/MQTT after MVP stability.
+1. Replace insecure TLS in firmware before field use.
+2. Rotate the OpenAI API key used during manual testing before wider sharing.
+3. Add access control or rate limits before sharing the hosted test page widely.
+4. Add OTA update for firmware.
+5. Add power modes. Current firmware keeps Wi-Fi awake for low latency and drains the battery faster.
+6. Add mechanical enclosure files after confirming lens angle and temple placement.
+7. Add a hardware shutter LED or haptic cue if privacy signaling is required.
+8. Consider lowering poll interval for battery or switching to WebSocket/MQTT after the current polling approach is stable across longer sessions.
 
 ## Recommended first setup task
 

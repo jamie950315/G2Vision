@@ -116,3 +116,38 @@ Minimum simulator checks:
 Simulator automation can return `ok` for an input even when the simulator does not emit an app event. Check `/api/console` and `/api/screenshot/webview` after each gesture, especially for `down`.
 
 Also run one real OpenAI-backed upload with a JPEG from `testImages/` before field testing. Confirm the job reaches `done`, `GET /api/app-state` returns `status = 2`, and `history[0]` contains the successful response.
+
+## Real glasses and XIAO validation
+
+The real-device MVP path has been validated with:
+
+- hosted backend at `https://g2vision.0ruka.dev`
+- XIAO ESP32S3 Sense on home Wi-Fi
+- Even Hub app loaded on paired G2 glasses through the companion app
+- G2/R1 press triggering XIAO capture and AI result display on glasses
+
+For a live dev run:
+
+```bash
+cd even-hub-app
+npm run dev -- --host 0.0.0.0 --port 5173
+evenhub qr --url "http://<dev-machine-lan-ip>:5173"
+```
+
+The phone paired with the G2 must be able to reach the dev server URL. The app itself calls the hosted backend listed in `app.json`.
+
+On the XIAO serial monitor, use `115200` baud and confirm idle polling before pressing G2/R1:
+
+```text
+Polling backend: no job, RSSI ... dBm
+```
+
+After a G2/R1 press, the XIAO should show:
+
+```text
+Received backend job: ...
+Handling backend job: ...
+Upload status: 200
+```
+
+If the G2 creates a job but XIAO serial stays completely quiet, the first check is whether the polling heartbeat is still appearing. If it is absent, inspect XIAO Wi-Fi or reset the board. If the heartbeat is present but no job appears, inspect backend events and app network reachability.

@@ -12,6 +12,26 @@ Reasons:
 - Seeed's camera usage page states the XIAO ESP32S3 Sense camera occupies GPIO10, GPIO11, GPIO12, GPIO13, GPIO14, GPIO15, GPIO16, GPIO17, GPIO18, GPIO38, GPIO39, GPIO40, GPIO47, GPIO48.
 - Seeed's camera tutorial says PSRAM must be enabled in Arduino IDE for the camera to work properly.
 
+## Bring-up status
+
+The first real-device MVP path is working:
+
+- XIAO ESP32S3 Sense has been flashed with the project firmware.
+- Home Wi-Fi connection succeeded.
+- G2/R1 input creates backend jobs that the XIAO receives through polling.
+- XIAO captures and uploads JPEG images.
+- The AI result is displayed on the glasses.
+
+During initial testing, a home Wi-Fi network was more reliable than an iPhone hotspot. For hotspot testing, enable compatibility mode and keep the hotspot screen open while the XIAO connects.
+
+Serial monitor at `115200` should show:
+
+```text
+Polling backend: no job, RSSI ... dBm
+```
+
+This heartbeat confirms the XIAO is still polling while idle.
+
 ## External button
 
 Recommended MVP button pin: D1 / GPIO2.
@@ -43,6 +63,8 @@ Mount the XIAO Sense on the right temple of the G2 frame. Put the camera near th
 ## Battery guidance
 
 For first wearable testing, use 150-300 mAh LiPo. Seeed's docs list battery webcam average around 3.8 V / about 155 mA and image capture peak around 3.8 V / about 366 mA for XIAO ESP32S3 Sense. This makes 150 mAh enough for short demos and 300 mAh better for repeated field testing.
+
+The current firmware keeps Wi-Fi awake and polls the backend every 2 seconds for low-latency MVP behavior. This is good for bring-up but should be measured before final battery sizing.
 
 ## Pins to avoid
 

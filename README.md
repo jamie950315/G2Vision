@@ -24,6 +24,30 @@ AGENTS.md                        Contributor guidance for AI coding agents
 1. G2/R1 press in the Even Hub app creates a backend job. The XIAO polls for the job, captures JPEG, uploads it, and the backend calls the vision endpoint.
 2. External physical button on the XIAO captures immediately and uploads JPEG to the backend. The Even Hub app polls events and displays the result on the glasses.
 
+## Current verified MVP status
+
+The main hardware path is working:
+
+```text
+G2/R1 press
+  -> hosted backend creates a job
+  -> XIAO ESP32S3 Sense polls and receives the job
+  -> XIAO captures and uploads a JPEG
+  -> backend sends the image to the vision endpoint
+  -> Even Hub app displays the AI result on the glasses
+```
+
+The XIAO has also been tested on a home Wi-Fi network. iPhone hotspot setup can work, but a normal 2.4 GHz-capable router network is the more reliable first test environment.
+
+Expected XIAO serial monitor signs:
+
+- Startup success: `WiFi connected: ...` and `G2 external vision camera firmware ready`.
+- Idle polling: `Polling backend: no job, RSSI ... dBm` about every 10 seconds.
+- G2/R1 capture: `Received backend job: ...`, `Handling backend job: ...`, then `Upload status: 200`.
+- XIAO button capture: `External button pressed: capture queued`, `Handling hardware button capture`, then `Upload status: 200`.
+
+The firmware uses fresh HTTPS clients per request and disables HTTP reuse so long-running polling continues without needing a board reset.
+
 ## App recovery and history
 
 The backend keeps a short-lived app state snapshot so the glasses app can recover from accidental exits:
@@ -79,6 +103,16 @@ Board: Seeed Studio XIAO ESP32S3.
 Enable PSRAM.
 Upload.
 ```
+
+Real glasses dev test:
+
+```bash
+cd even-hub-app
+npm run dev -- --host 0.0.0.0 --port 5173
+evenhub qr --url "http://<dev-machine-lan-ip>:5173"
+```
+
+Scan the URL/QR with the Even Hub companion app on the phone paired with the G2. Keep the XIAO powered on and connected to the same backend origin as the app.
 
 ## Without hardware
 

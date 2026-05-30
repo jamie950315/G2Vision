@@ -5,6 +5,16 @@ This firmware supports two capture paths:
 1. Even Hub path: the app creates a backend job; the XIAO polls `/cam/next`, captures a JPEG, and uploads to `/cam/upload/:id`.
 2. Hardware button path: a physical momentary button connected to D1 / GPIO2 and GND triggers immediate JPEG capture and upload to `/cam/button-capture`.
 
+## Current verified status
+
+This firmware has been flashed and tested with the hosted backend and real G2 glasses. The verified path is:
+
+```text
+G2/R1 press -> backend job -> XIAO polling -> JPEG upload -> AI result on glasses
+```
+
+The XIAO was more reliable on a home Wi-Fi network than on an iPhone hotspot during initial testing.
+
 ## Hardware wiring
 
 - XIAO ESP32S3 Sense with camera expansion board installed.
@@ -27,6 +37,43 @@ This firmware supports two capture paths:
 ## Configure secrets
 
 Copy `secrets.example.h` to `secrets.h` and set WiFi, backend URL, device ID, and token.
+
+## Serial monitor checks
+
+Use baud rate `115200`.
+
+Expected startup logs:
+
+```text
+WiFi connected: ...
+G2 external vision camera firmware ready
+```
+
+Expected idle polling log, printed about every 10 seconds:
+
+```text
+Polling backend: no job, RSSI ... dBm
+```
+
+Expected G2/R1 capture logs:
+
+```text
+Received backend job: ...
+Handling backend job: ...
+Uploading JPEG: ... bytes
+Upload status: 200
+```
+
+Expected hardware-button logs:
+
+```text
+External button pressed: capture queued
+Handling hardware button capture
+Uploading JPEG: ... bytes
+Upload status: 200
+```
+
+If the glasses create a job but the XIAO does not print the polling heartbeat, reset the board and inspect Wi-Fi stability. The current firmware creates a fresh HTTPS client for each request and closes it after use to keep long-running polling stable.
 
 ## Production TLS
 
