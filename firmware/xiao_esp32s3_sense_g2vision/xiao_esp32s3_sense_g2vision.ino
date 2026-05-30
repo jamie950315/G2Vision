@@ -9,9 +9,8 @@
 #include "config.h"
 #include "camera_pins_xiao_esp32s3_sense.h"
 
-WiFiClientSecure secureClient;
-
 unsigned long lastPollMs = 0;
+unsigned long lastPollHeartbeatMs = 0;
 unsigned long lastWiFiReconnectMs = 0;
 unsigned long lastButtonCaptureMs = 0;
 
@@ -27,12 +26,12 @@ void setStatusLed(bool on) {
 #endif
 }
 
-void configureTls() {
-  secureClient.setTimeout(HTTP_TIMEOUT_MS / 1000);
+void configureSecureClient(WiFiClientSecure &client) {
+  client.setTimeout(HTTP_TIMEOUT_MS / 1000);
   if (USE_INSECURE_TLS) {
-    secureClient.setInsecure();
+    client.setInsecure();
   } else {
-    secureClient.setCACert(BACKEND_ROOT_CA);
+    client.setCACert(BACKEND_ROOT_CA);
   }
 }
 
@@ -161,13 +160,23 @@ String authHeader() {
 }
 
 bool httpGetJson(const String &url, String &body, int &code) {
+  WiFiClientSecure client;
+  configureSecureClient(client);
+
   HTTPClient http;
   http.setTimeout(HTTP_TIMEOUT_MS);
-  http.begin(secureClient, url);
+  http.setReuse(false);
+  if (!http.begin(client, url)) {
+    code = -1;
+    body = "HTTP begin failed";
+    client.stop();
+    return false;
+  }
   http.addHeader("Authorization", authHeader());
   code = http.GET();
   body = code > 0 ? http.getString() : String();
   http.end();
+  client.stop();
   return code >= 200 && code < 300;
 }
 
@@ -179,7 +188,14 @@ String getNextJobId() {
   int code = 0;
   bool ok = httpGetJson(url, body, code);
 
-  if (code == 204) return String();
+  if (code == 204) {
+    unsigned long now = millis();
+    if (now - lastPollHeartbeatMs >= POLL_HEARTBEAT_MS) {
+      lastPollHeartbeatMs = now;
+      Serial.printf("Polling backend: no job, RSSI %d dBm\n", WiFi.RSSI());
+    }
+    return String();
+  }
 
   if (!ok) {
     Serial.printf("/cam/next failed: %d\n", code);
@@ -196,7 +212,11 @@ String getNextJobId() {
   }
 
   const char *requestId = doc["request_id"];
-  return requestId ? String(requestId) : String();
+  if (!requestId) return String();
+
+  Serial.print("Received backend job: ");
+  Serial.println(requestId);
+  return String(requestId);
 }
 
 camera_fb_t *captureJpeg() {
@@ -221,9 +241,18 @@ camera_fb_t *captureJpeg() {
 }
 
 bool postJpeg(const String &url, camera_fb_t *fb, String &responseBody, int &code) {
+  WiFiClientSecure client;
+  configureSecureClient(client);
+
   HTTPClient http;
   http.setTimeout(HTTP_TIMEOUT_MS);
-  http.begin(secureClient, url);
+  http.setReuse(false);
+  if (!http.begin(client, url)) {
+    code = -1;
+    responseBody = "HTTP begin failed";
+    client.stop();
+    return false;
+  }
   http.addHeader("Authorization", authHeader());
   http.addHeader("X-Device-Id", DEVICE_ID);
   http.addHeader("Content-Type", "image/jpeg");
@@ -231,6 +260,7 @@ bool postJpeg(const String &url, camera_fb_t *fb, String &responseBody, int &cod
   code = http.POST(fb->buf, fb->len);
   responseBody = code > 0 ? http.getString() : String();
   http.end();
+  client.stop();
 
   return code >= 200 && code < 300;
 }
@@ -282,7 +312,6 @@ void setup() {
   setStatusLed(false);
 #endif
 
-  configureTls();
   setupButton();
   connectWiFi();
 
