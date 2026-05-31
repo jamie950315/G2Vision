@@ -15,11 +15,12 @@ const jobs = new Map<string, Job>()
 const pendingQueue: string[] = []
 const events: JobEvent[] = []
 const responseHistory: ResponseHistoryItem[] = []
+const inputImages = new Map<string, { contentType: string; data: Buffer }>()
 const dismissedAppJobIds = new Set<string>()
 let seq = 0
 
 const APP_STATE_TTL_MS = 10 * 60 * 1000
-const MAX_RESPONSE_HISTORY = 20
+export const MAX_RESPONSE_HISTORY = 100
 const HISTORY_TITLE_MAX_CHARS = 96
 
 type AppStateCore = Omit<AppStateSnapshot, 'history' | 'latestSeq'>
@@ -79,15 +80,20 @@ function addHistoryFromJob(job: Job): void {
     jobId: job.id,
     source: job.source,
     title: makeHistoryTitle(text),
+    prompt: job.prompt,
     result: job.result || '',
     error: job.error,
+    hasInputImage: inputImages.has(job.id),
     createdAt: job.doneAt || job.updatedAt,
   }
 
   const existingIndex = responseHistory.findIndex((entry) => entry.jobId === job.id)
   if (existingIndex >= 0) responseHistory.splice(existingIndex, 1)
   responseHistory.unshift(item)
-  while (responseHistory.length > MAX_RESPONSE_HISTORY) responseHistory.pop()
+  while (responseHistory.length > MAX_RESPONSE_HISTORY) {
+    const removed = responseHistory.pop()
+    if (removed) inputImages.delete(removed.jobId)
+  }
 }
 
 function expireAppStateIfNeeded(now = Date.now()): void {
@@ -161,6 +167,22 @@ export function updateJob(
   return job
 }
 
+export function storeJobInputImage(jobId: string, data: Buffer, contentType = 'image/jpeg'): void {
+  if (!jobs.has(jobId)) return
+  inputImages.set(jobId, { contentType, data: Buffer.from(data) })
+
+  const historyItem = responseHistory.find((entry) => entry.jobId === jobId)
+  if (historyItem) historyItem.hasInputImage = true
+}
+
+export function getHistoryInputImage(jobId: string): { contentType: string; data: Buffer } | undefined {
+  return inputImages.get(jobId)
+}
+
+export function getResponseHistory(): ResponseHistoryItem[] {
+  return responseHistory.map((item) => ({ ...item }))
+}
+
 export function assignNextQueuedJob(deviceId: string): Job | undefined {
   while (pendingQueue.length > 0) {
     const id = pendingQueue.shift()
@@ -196,6 +218,11 @@ export function cleanupOldJobs(): void {
 
   for (const [id, job] of jobs.entries()) {
     if (now - job.createdAt > config.jobTtlMs) jobs.delete(id)
+  }
+
+  const historyJobIds = new Set(responseHistory.map((item) => item.jobId))
+  for (const id of inputImages.keys()) {
+    if (!jobs.has(id) && !historyJobIds.has(id)) inputImages.delete(id)
   }
 
   for (let i = pendingQueue.length - 1; i >= 0; i -= 1) {
@@ -257,6 +284,7 @@ export function resetStoreForTests(): void {
   pendingQueue.length = 0
   events.length = 0
   responseHistory.length = 0
+  inputImages.clear()
   dismissedAppJobIds.clear()
   appState = createIdleAppState()
   seq = 0

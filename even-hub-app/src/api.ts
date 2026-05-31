@@ -29,8 +29,10 @@ export interface ResponseHistoryItem {
   jobId: string
   source: JobSource
   title: string
+  prompt?: string
   result: string
   error?: string
+  hasInputImage?: boolean
   createdAt: number
 }
 

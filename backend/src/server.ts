@@ -2,6 +2,7 @@ import express, { type Request, type Response } from 'express'
 import cors from 'cors'
 import { fileURLToPath } from 'node:url'
 import { config, DEFAULT_PROMPT } from './config.js'
+import { HISTORY_PAGE_HTML } from './history-page.js'
 import { TEST_PAGE_HTML } from './test-page.js'
 import { getTestPromptSettings, loadTestPrompt, saveTestPrompt } from './test-settings.js'
 import {
@@ -12,9 +13,13 @@ import {
   getAppStateSnapshot,
   getDebugState,
   getEventsAfter,
+  getHistoryInputImage,
   getJob,
   getLatestJob,
   getLatestSeq,
+  getResponseHistory,
+  MAX_RESPONSE_HISTORY,
+  storeJobInputImage,
   updateJob,
 } from './store.js'
 import { analyzeImageWithOpenAICompatibleEndpoint } from './vision.js'
@@ -100,6 +105,10 @@ app.get('/test', (_req, res) => {
   res.type('html').send(TEST_PAGE_HTML)
 })
 
+app.get(['/history', '/test/history'], (_req, res) => {
+  res.type('html').send(HISTORY_PAGE_HTML)
+})
+
 app.get('/api/test-prompt', (_req, res) => {
   res.json(getTestPromptSettings())
 })
@@ -168,6 +177,25 @@ app.get('/api/app-state', (_req, res) => {
   res.json(getAppStateSnapshot())
 })
 
+app.get('/api/history', (_req, res) => {
+  const items = getResponseHistory().map((item) => ({
+    ...item,
+    inputImageUrl: item.hasInputImage ? `/api/history/${encodeURIComponent(item.jobId)}/image` : undefined,
+  }))
+
+  res.json({ limit: MAX_RESPONSE_HISTORY, items })
+})
+
+app.get('/api/history/:id/image', (req, res) => {
+  const image = getHistoryInputImage(req.params.id)
+  if (!image) {
+    res.status(404).json({ error: 'history image not found' })
+    return
+  }
+
+  res.type(image.contentType).send(image.data)
+})
+
 app.post('/api/app-state/clear', (_req, res) => {
   res.json(clearAppState())
 })
@@ -186,6 +214,7 @@ app.post('/api/test-image', express.raw({ type: 'image/jpeg', limit: '8mb' }), (
     enqueue: false,
   })
 
+  storeJobInputImage(job.id, jpeg)
   updateJob(job.id, { status: 'uploaded', uploadedAt: Date.now(), deviceId: 'browser-test' })
   res.json({ ok: true, id: job.id, bytes: jpeg.length, latestSeq: getLatestSeq() })
   void analyzeAndStore(job, jpeg)
@@ -238,6 +267,7 @@ app.post(
       return
     }
 
+    storeJobInputImage(job.id, jpeg)
     updateJob(job.id, { status: 'uploaded', uploadedAt: Date.now(), deviceId })
     res.json({ ok: true, id: job.id, bytes: jpeg.length })
     void analyzeAndStore(job, jpeg)
@@ -266,6 +296,7 @@ app.post(
       enqueue: false,
     })
 
+    storeJobInputImage(job.id, jpeg)
     updateJob(job.id, { status: 'uploaded', uploadedAt: Date.now(), deviceId })
     res.json({ ok: true, id: job.id, bytes: jpeg.length, latestSeq: getLatestSeq() })
     void analyzeAndStore(job, jpeg)

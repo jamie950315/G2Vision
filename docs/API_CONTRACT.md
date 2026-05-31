@@ -112,7 +112,45 @@ Response:
 }
 ```
 
-History contains the newest 20 terminal responses. The oldest item is removed when the list grows past 20. Each history title is generated from the start of the normalized response text and is capped at 96 characters plus an ellipsis when needed.
+History contains the newest 100 terminal responses. The oldest item is removed when the list grows past 100. Each history title is generated from the start of the normalized response text and is capped at 96 characters plus an ellipsis when needed.
+
+### `GET /history`
+
+Returns the backend website history page. The page lists saved responses and shows the backend input image for each item when an image was saved.
+
+### `GET /test/history`
+
+Alias for the same backend website history page. This keeps history reachable from the hosted `/test` workflow.
+
+### `GET /api/history`
+
+Returns the response history used by the website history page.
+
+Response:
+
+```json
+{
+  "limit": 100,
+  "items": [
+    {
+      "id": "uuid",
+      "jobId": "uuid",
+      "source": "xiao_button",
+      "title": "AI response text",
+      "prompt": "Use Traditional Chinese (Taiwan)...",
+      "result": "AI response text",
+      "error": null,
+      "hasInputImage": true,
+      "inputImageUrl": "/api/history/uuid/image",
+      "createdAt": 1760000000000
+    }
+  ]
+}
+```
+
+### `GET /api/history/:id/image`
+
+Returns the JPEG input image saved for a history item. The backend currently stores these history entries in memory, so history is reset when the backend process restarts.
 
 ### `POST /api/app-state/clear`
 

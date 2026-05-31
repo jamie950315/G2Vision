@@ -117,6 +117,15 @@ Simulator automation can return `ok` for an input even when the simulator does n
 
 Also run one real OpenAI-backed upload with a JPEG from `testImages/` before field testing. Confirm the job reaches `done`, `GET /api/app-state` returns `status = 2`, and `history[0]` contains the successful response.
 
+For the hosted backend website, confirm both history routes return the same page:
+
+```bash
+curl -I https://g2vision.0ruka.dev/history
+curl -I https://g2vision.0ruka.dev/test/history
+```
+
+The history page is backed by in-memory response history and saved input images, so restarting `g2vision-backend.service` clears the list.
+
 ## Real glasses and XIAO validation
 
 The real-device MVP path has been validated with:

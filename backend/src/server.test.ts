@@ -245,10 +245,10 @@ describe('backend app recovery state', () => {
     assert.equal(futureState.history[0].jobId, upload.body.id)
   })
 
-  it('keeps only the newest twenty response history entries', async () => {
+  it('keeps only the newest one hundred response history entries', async () => {
     const jobIds: string[] = []
 
-    for (let index = 0; index < 21; index += 1) {
+    for (let index = 0; index < 101; index += 1) {
       const upload = await requestJson(`/cam/button-capture?device_id=${TEST_DEVICE_ID}`, {
         method: 'POST',
         headers: {
@@ -264,9 +264,41 @@ describe('backend app recovery state', () => {
 
     const appState = await requestJson('/api/app-state')
     assert.equal(appState.response.status, 200)
-    assert.equal(appState.body.history.length, 20)
-    assert.equal(appState.body.history[0].jobId, jobIds[20])
+    assert.equal(appState.body.history.length, 100)
+    assert.equal(appState.body.history[0].jobId, jobIds[100])
     assert.equal(appState.body.history.some((item: Json) => item.jobId === jobIds[0]), false)
+  })
+
+  it('exposes website history with the saved input image', async () => {
+    const sourceImage = makeJpeg()
+    const upload = await requestJson(`/cam/button-capture?device_id=${TEST_DEVICE_ID}`, {
+      method: 'POST',
+      headers: {
+        ...cameraHeaders(),
+        'Content-Type': 'image/jpeg',
+      },
+      body: sourceImage,
+    })
+    assert.equal(upload.response.status, 200)
+    await waitForStatus(upload.body.id, 'error')
+
+    const page = await fetch(`${baseUrl}/history`)
+    assert.equal(page.status, 200)
+    assert.match(await page.text(), /G2Vision History/)
+
+    const history = await requestJson('/api/history')
+    assert.equal(history.response.status, 200)
+    assert.equal(history.body.limit, 100)
+    assert.equal(history.body.items.length, 1)
+    assert.equal(history.body.items[0].jobId, upload.body.id)
+    assert.equal(history.body.items[0].hasInputImage, true)
+    assert.equal(history.body.items[0].inputImageUrl, `/api/history/${upload.body.id}/image`)
+    assert.equal(history.body.items[0].error, 'OPENAI_API_KEY is not configured')
+
+    const image = await fetch(`${baseUrl}${history.body.items[0].inputImageUrl}`)
+    assert.equal(image.status, 200)
+    assert.equal(image.headers.get('content-type'), 'image/jpeg')
+    assert.deepEqual(Buffer.from(await image.arrayBuffer()), Buffer.from(await sourceImage.arrayBuffer()))
   })
 
   it('stores successful response text as the latest response and history title', () => {

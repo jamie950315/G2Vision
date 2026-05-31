@@ -34,6 +34,13 @@ export const TEST_PAGE_HTML = `<!doctype html>
         line-height: 1.1;
       }
 
+      .topbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
       p {
         margin: 0 0 18px;
         color: #4b5870;
@@ -82,6 +89,19 @@ export const TEST_PAGE_HTML = `<!doctype html>
         cursor: pointer;
         background: #e8edf6;
         color: #24324a;
+      }
+
+      .history-link {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 8px;
+        padding: 10px 14px;
+        background: #e8edf6;
+        color: #24324a;
+        font: inherit;
+        font-weight: 700;
+        text-decoration: none;
+        white-space: nowrap;
       }
 
       button.primary {
@@ -237,6 +257,11 @@ export const TEST_PAGE_HTML = `<!doctype html>
           color: #e4ecfb;
         }
 
+        .history-link {
+          background: #26344c;
+          color: #e4ecfb;
+        }
+
         #dropzone {
           border-color: #63718a;
         }
@@ -251,12 +276,27 @@ export const TEST_PAGE_HTML = `<!doctype html>
           color: #d9e5f8;
         }
       }
+
+      @media (max-width: 640px) {
+        .topbar {
+          display: block;
+        }
+
+        .history-link {
+          margin-top: 12px;
+        }
+      }
     </style>
   </head>
   <body>
     <main>
-      <h1>G2Vision Test</h1>
-      <p>Drag an image here, or click the upload area. The image is sent to the local backend, then analyzed server-side.</p>
+      <div class="topbar">
+        <div>
+          <h1>G2Vision Test</h1>
+          <p>Drag an image here, or click the upload area. The image is sent to the local backend, then analyzed server-side.</p>
+        </div>
+        <a class="history-link" href="/history">History</a>
+      </div>
 
       <section class="prompt-panel" aria-label="Prompt settings">
         <label for="promptInput">System prompt</label>
