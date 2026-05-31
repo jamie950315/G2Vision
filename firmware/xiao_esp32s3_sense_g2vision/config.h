@@ -26,7 +26,7 @@
 
 // Adjust these if the enclosure flips the camera orientation.
 #define CAMERA_VFLIP 1
-#define CAMERA_HMIRROR 1
+#define CAMERA_HMIRROR 0
 
 // Small tuning bump for indoor captures. Valid range for these OV camera
 // controls is typically -2..2.

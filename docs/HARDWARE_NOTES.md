@@ -40,7 +40,7 @@ Recent live captures from the hosted backend showed the camera image upside down
 #define DEFAULT_FRAME_SIZE FRAMESIZE_SVGA
 #define DEFAULT_JPEG_QUALITY 10
 #define CAMERA_VFLIP 1
-#define CAMERA_HMIRROR 1
+#define CAMERA_HMIRROR 0
 #define CAMERA_BRIGHTNESS 1
 #define CAMERA_CONTRAST 1
 #define CAMERA_SATURATION 1

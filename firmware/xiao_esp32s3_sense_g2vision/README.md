@@ -23,13 +23,13 @@ The current default capture settings are tuned for the latest live indoor test:
 #define DEFAULT_FRAME_SIZE FRAMESIZE_SVGA
 #define DEFAULT_JPEG_QUALITY 10
 #define CAMERA_VFLIP 1
-#define CAMERA_HMIRROR 1
+#define CAMERA_HMIRROR 0
 #define CAMERA_BRIGHTNESS 1
 #define CAMERA_CONTRAST 1
 #define CAMERA_SATURATION 1
 ```
 
-`CAMERA_VFLIP` and `CAMERA_HMIRROR` together correct a 180 degree upside-down image. The brightness, contrast, and saturation values are intentionally mild first-pass adjustments for dim indoor scenes.
+`CAMERA_VFLIP` corrects the vertical orientation, while `CAMERA_HMIRROR` is left disabled for the current camera mount. The brightness, contrast, and saturation values are intentionally mild first-pass adjustments for dim indoor scenes.
 
 ## Hardware wiring
 
