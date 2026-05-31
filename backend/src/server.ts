@@ -237,7 +237,7 @@ app.get('/cam/next', (req, res) => {
     request_id: job.id,
     upload_path: `/cam/upload/${job.id}`,
     frame_size: 'SVGA',
-    jpeg_quality: 12,
+    jpeg_quality: 10,
   })
 })
 

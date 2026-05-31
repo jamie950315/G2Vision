@@ -216,7 +216,7 @@ Job response:
   "request_id": "uuid",
   "upload_path": "/cam/upload/uuid",
   "frame_size": "SVGA",
-  "jpeg_quality": 12
+  "jpeg_quality": 10
 }
 ```
 

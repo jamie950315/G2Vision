@@ -15,6 +15,22 @@ G2/R1 press -> backend job -> XIAO polling -> JPEG upload -> AI result on glasse
 
 The XIAO was more reliable on a home Wi-Fi network than on an iPhone hotspot during initial testing.
 
+## Camera tuning
+
+The current default capture settings are tuned for the latest live indoor test:
+
+```cpp
+#define DEFAULT_FRAME_SIZE FRAMESIZE_SVGA
+#define DEFAULT_JPEG_QUALITY 10
+#define CAMERA_VFLIP 1
+#define CAMERA_HMIRROR 1
+#define CAMERA_BRIGHTNESS 1
+#define CAMERA_CONTRAST 1
+#define CAMERA_SATURATION 1
+```
+
+`CAMERA_VFLIP` and `CAMERA_HMIRROR` together correct a 180 degree upside-down image. The brightness, contrast, and saturation values are intentionally mild first-pass adjustments for dim indoor scenes.
+
 ## Hardware wiring
 
 - XIAO ESP32S3 Sense with camera expansion board installed.

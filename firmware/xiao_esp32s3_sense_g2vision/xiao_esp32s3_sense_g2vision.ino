@@ -112,9 +112,9 @@ bool setupCamera() {
   if (sensor) {
     sensor->set_vflip(sensor, CAMERA_VFLIP);
     sensor->set_hmirror(sensor, CAMERA_HMIRROR);
-    sensor->set_brightness(sensor, 0);
-    sensor->set_contrast(sensor, 0);
-    sensor->set_saturation(sensor, 0);
+    sensor->set_brightness(sensor, CAMERA_BRIGHTNESS);
+    sensor->set_contrast(sensor, CAMERA_CONTRAST);
+    sensor->set_saturation(sensor, CAMERA_SATURATION);
   }
 
   return true;

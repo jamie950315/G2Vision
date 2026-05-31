@@ -128,6 +128,8 @@ describe('backend camera integration flow', () => {
     assert.equal(next.response.status, 200)
     assert.equal(next.body.request_id, capture.body.id)
     assert.equal(next.body.upload_path, `/cam/upload/${capture.body.id}`)
+    assert.equal(next.body.frame_size, 'SVGA')
+    assert.equal(next.body.jpeg_quality, 10)
 
     const upload = await requestJson(`${next.body.upload_path}?device_id=${TEST_DEVICE_ID}`, {
       method: 'POST',

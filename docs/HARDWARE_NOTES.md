@@ -32,6 +32,22 @@ Polling backend: no job, RSSI ... dBm
 
 This heartbeat confirms the XIAO is still polling while idle.
 
+## Camera tuning
+
+Recent live captures from the hosted backend showed the camera image upside down, slightly dim, and low in contrast/saturation. The current firmware defaults correct the orientation and apply a mild indoor tuning profile:
+
+```cpp
+#define DEFAULT_FRAME_SIZE FRAMESIZE_SVGA
+#define DEFAULT_JPEG_QUALITY 10
+#define CAMERA_VFLIP 1
+#define CAMERA_HMIRROR 1
+#define CAMERA_BRIGHTNESS 1
+#define CAMERA_CONTRAST 1
+#define CAMERA_SATURATION 1
+```
+
+The matching backend `/cam/next` response now advertises `frame_size = "SVGA"` and `jpeg_quality = 10`. The XIAO firmware currently uses its local compile-time settings, so camera tuning changes still require reflashing the board.
+
 ## External button
 
 Recommended MVP button pin: D1 / GPIO2.
