@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict'
 import { after, before, beforeEach, describe, it } from 'node:test'
+import { mkdtemp, rm } from 'node:fs/promises'
 import type { Server } from 'node:http'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import type { Express } from 'express'
 import type {
   createJob as createJobType,
   getAppStateSnapshot as getAppStateSnapshotType,
+  loadResponseHistoryFromDisk as loadResponseHistoryFromDiskType,
   resetStoreForTests as resetStoreForTestsType,
   updateJob as updateJobType,
 } from './store.js'
@@ -21,6 +25,8 @@ let resetStoreForTests: typeof resetStoreForTestsType
 let getAppStateSnapshot: typeof getAppStateSnapshotType
 let createJob: typeof createJobType
 let updateJob: typeof updateJobType
+let loadResponseHistoryFromDisk: typeof loadResponseHistoryFromDiskType
+let historyDataDir = ''
 
 function makeJpeg(size = 2048): Blob {
   const header = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10])
@@ -65,6 +71,8 @@ before(async () => {
   process.env.CAMERA_TOKEN = TEST_TOKEN
   process.env.CAMERA_DEVICE_ID = TEST_DEVICE_ID
   process.env.OPENAI_API_KEY = ''
+  historyDataDir = await mkdtemp(join(tmpdir(), 'g2vision-history-test-'))
+  process.env.RESPONSE_HISTORY_DIR = historyDataDir
 
   const serverModule = await import('./server.js')
   const storeModule = await import('./store.js')
@@ -73,6 +81,7 @@ before(async () => {
   getAppStateSnapshot = storeModule.getAppStateSnapshot
   createJob = storeModule.createJob
   updateJob = storeModule.updateJob
+  loadResponseHistoryFromDisk = storeModule.loadResponseHistoryFromDisk
 
   await new Promise<void>((resolve) => {
     server = app.listen(0, '127.0.0.1', resolve)
@@ -87,6 +96,7 @@ after(async () => {
   await new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()))
   })
+  if (historyDataDir) await rm(historyDataDir, { recursive: true, force: true })
 })
 
 beforeEach(() => {
@@ -298,6 +308,35 @@ describe('backend app recovery state', () => {
     const image = await fetch(`${baseUrl}${history.body.items[0].inputImageUrl}`)
     assert.equal(image.status, 200)
     assert.equal(image.headers.get('content-type'), 'image/jpeg')
+    assert.deepEqual(Buffer.from(await image.arrayBuffer()), Buffer.from(await sourceImage.arrayBuffer()))
+  })
+
+  it('keeps website history and input images on disk across runtime reloads', async () => {
+    const sourceImage = makeJpeg()
+    const upload = await requestJson('/api/test-image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'X-Test-Prompt': 'disk history prompt',
+      },
+      body: sourceImage,
+    })
+    assert.equal(upload.response.status, 200)
+    await waitForStatus(upload.body.id, 'error')
+
+    resetStoreForTests({ preserveHistoryDisk: true })
+    loadResponseHistoryFromDisk()
+
+    const history = await requestJson('/api/history')
+    assert.equal(history.response.status, 200)
+    assert.equal(history.body.items.length, 1)
+    assert.equal(history.body.items[0].source, 'test_page')
+    assert.equal(history.body.items[0].prompt, 'disk history prompt')
+    assert.equal(history.body.items[0].jobId, upload.body.id)
+    assert.equal(history.body.items[0].hasInputImage, true)
+
+    const image = await fetch(`${baseUrl}${history.body.items[0].inputImageUrl}`)
+    assert.equal(image.status, 200)
     assert.deepEqual(Buffer.from(await image.arrayBuffer()), Buffer.from(await sourceImage.arrayBuffer()))
   })
 

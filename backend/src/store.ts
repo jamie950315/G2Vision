@@ -1,4 +1,14 @@
 import crypto from 'node:crypto'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { join } from 'node:path'
 import { config, DEFAULT_PROMPT } from './config.js'
 import { normalizeMathForDisplay } from './math-text.js'
 import type {
@@ -15,13 +25,18 @@ const jobs = new Map<string, Job>()
 const pendingQueue: string[] = []
 const events: JobEvent[] = []
 const responseHistory: ResponseHistoryItem[] = []
-const inputImages = new Map<string, { contentType: string; data: Buffer }>()
 const dismissedAppJobIds = new Set<string>()
 let seq = 0
 
 const APP_STATE_TTL_MS = 10 * 60 * 1000
 export const MAX_RESPONSE_HISTORY = 100
 const HISTORY_TITLE_MAX_CHARS = 96
+const HISTORY_FILE = join(config.responseHistoryDir, 'history.json')
+const IMAGE_DIR = join(config.responseHistoryDir, 'images')
+
+type ResetStoreOptions = {
+  preserveHistoryDisk?: boolean
+}
 
 type AppStateCore = Omit<AppStateSnapshot, 'history' | 'latestSeq'>
 
@@ -53,6 +68,7 @@ function pushEvent(job: Job): JobEvent {
 
   events.push(event)
   while (events.length > config.eventBufferSize) events.shift()
+  if (job.source === 'test_page') addHistoryFromJob(job)
   syncAppStateFromJob(job)
   return event
 }
@@ -71,6 +87,66 @@ function makeHistoryTitle(text: string): string {
   return compact.length > HISTORY_TITLE_MAX_CHARS ? `${compact.slice(0, HISTORY_TITLE_MAX_CHARS)}...` : compact
 }
 
+function isSafeJobId(jobId: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(jobId)
+}
+
+function imagePath(jobId: string): string {
+  return join(IMAGE_DIR, `${jobId}.jpg`)
+}
+
+function hasDiskInputImage(jobId: string): boolean {
+  return isSafeJobId(jobId) && existsSync(imagePath(jobId))
+}
+
+function ensureHistoryDirs(): void {
+  mkdirSync(IMAGE_DIR, { recursive: true })
+}
+
+function removeHistoryImage(jobId: string): void {
+  if (!isSafeJobId(jobId)) return
+  rmSync(imagePath(jobId), { force: true })
+}
+
+function persistResponseHistory(): void {
+  ensureHistoryDirs()
+  const tmpFile = `${HISTORY_FILE}.tmp`
+  writeFileSync(tmpFile, `${JSON.stringify(responseHistory, null, 2)}\n`, 'utf8')
+  renameSync(tmpFile, HISTORY_FILE)
+}
+
+function pruneDiskImages(): void {
+  if (!existsSync(IMAGE_DIR)) return
+  const kept = new Set(responseHistory.map((item) => `${item.jobId}.jpg`))
+
+  for (const name of readdirSync(IMAGE_DIR)) {
+    if (!kept.has(name)) rmSync(join(IMAGE_DIR, name), { force: true })
+  }
+}
+
+function toHistoryItem(value: unknown): ResponseHistoryItem | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const item = value as Partial<ResponseHistoryItem>
+  if (typeof item.id !== 'string' || typeof item.jobId !== 'string') return undefined
+  if (!isSafeJobId(item.jobId)) return undefined
+  if (item.source !== 'even_hub' && item.source !== 'xiao_button' && item.source !== 'test_page') return undefined
+  if (typeof item.createdAt !== 'number' || !Number.isFinite(item.createdAt)) return undefined
+
+  const result = typeof item.result === 'string' ? item.result : ''
+  const error = typeof item.error === 'string' ? item.error : undefined
+  return {
+    id: item.id,
+    jobId: item.jobId,
+    source: item.source,
+    title: typeof item.title === 'string' && item.title.trim() ? item.title : makeHistoryTitle(result || error || ''),
+    prompt: typeof item.prompt === 'string' ? item.prompt : DEFAULT_PROMPT,
+    result,
+    error,
+    hasInputImage: hasDiskInputImage(item.jobId),
+    createdAt: item.createdAt,
+  }
+}
+
 function addHistoryFromJob(job: Job): void {
   if (!isTerminalStatus(job.status)) return
 
@@ -83,7 +159,7 @@ function addHistoryFromJob(job: Job): void {
     prompt: job.prompt,
     result: job.result || '',
     error: job.error,
-    hasInputImage: inputImages.has(job.id),
+    hasInputImage: hasDiskInputImage(job.id),
     createdAt: job.doneAt || job.updatedAt,
   }
 
@@ -92,8 +168,10 @@ function addHistoryFromJob(job: Job): void {
   responseHistory.unshift(item)
   while (responseHistory.length > MAX_RESPONSE_HISTORY) {
     const removed = responseHistory.pop()
-    if (removed) inputImages.delete(removed.jobId)
+    if (removed) removeHistoryImage(removed.jobId)
   }
+  persistResponseHistory()
+  pruneDiskImages()
 }
 
 function expireAppStateIfNeeded(now = Date.now()): void {
@@ -168,19 +246,47 @@ export function updateJob(
 }
 
 export function storeJobInputImage(jobId: string, data: Buffer, contentType = 'image/jpeg'): void {
-  if (!jobs.has(jobId)) return
-  inputImages.set(jobId, { contentType, data: Buffer.from(data) })
+  if (!jobs.has(jobId) || contentType !== 'image/jpeg') return
+  ensureHistoryDirs()
+  writeFileSync(imagePath(jobId), data)
 
   const historyItem = responseHistory.find((entry) => entry.jobId === jobId)
-  if (historyItem) historyItem.hasInputImage = true
+  if (historyItem) {
+    historyItem.hasInputImage = true
+    persistResponseHistory()
+  }
 }
 
 export function getHistoryInputImage(jobId: string): { contentType: string; data: Buffer } | undefined {
-  return inputImages.get(jobId)
+  if (!isSafeJobId(jobId) || !hasDiskInputImage(jobId)) return undefined
+  return { contentType: 'image/jpeg', data: readFileSync(imagePath(jobId)) }
 }
 
 export function getResponseHistory(): ResponseHistoryItem[] {
   return responseHistory.map((item) => ({ ...item }))
+}
+
+export function loadResponseHistoryFromDisk(): void {
+  responseHistory.length = 0
+
+  try {
+    const raw = JSON.parse(readFileSync(HISTORY_FILE, 'utf8')) as unknown
+    const entries = Array.isArray(raw) ? raw : []
+    for (const value of entries) {
+      const item = toHistoryItem(value)
+      if (item) responseHistory.push(item)
+    }
+    while (responseHistory.length > MAX_RESPONSE_HISTORY) {
+      const removed = responseHistory.pop()
+      if (removed) removeHistoryImage(removed.jobId)
+    }
+    persistResponseHistory()
+    pruneDiskImages()
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.warn(`Could not read response history: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
 }
 
 export function assignNextQueuedJob(deviceId: string): Job | undefined {
@@ -218,11 +324,6 @@ export function cleanupOldJobs(): void {
 
   for (const [id, job] of jobs.entries()) {
     if (now - job.createdAt > config.jobTtlMs) jobs.delete(id)
-  }
-
-  const historyJobIds = new Set(responseHistory.map((item) => item.jobId))
-  for (const id of inputImages.keys()) {
-    if (!jobs.has(id) && !historyJobIds.has(id)) inputImages.delete(id)
   }
 
   for (let i = pendingQueue.length - 1; i >= 0; i -= 1) {
@@ -279,12 +380,12 @@ export function getAppStateSnapshot(now = Date.now()): AppStateSnapshot {
   }
 }
 
-export function resetStoreForTests(): void {
+export function resetStoreForTests(options: ResetStoreOptions = {}): void {
   jobs.clear()
   pendingQueue.length = 0
   events.length = 0
   responseHistory.length = 0
-  inputImages.clear()
+  if (!options.preserveHistoryDisk) rmSync(config.responseHistoryDir, { recursive: true, force: true })
   dismissedAppJobIds.clear()
   appState = createIdleAppState()
   seq = 0

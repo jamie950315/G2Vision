@@ -38,6 +38,10 @@ export const config = {
   port: readInt('PORT', 8787),
   publicBaseUrl: readEnv('PUBLIC_BASE_URL', 'http://localhost:8787'),
   corsOrigin: readEnv('CORS_ORIGIN', '*'),
+  responseHistoryDir: readEnv(
+    'RESPONSE_HISTORY_DIR',
+    resolve(dirname(fileURLToPath(import.meta.url)), '../data/response-history'),
+  ),
   cameraDeviceId: readEnv('CAMERA_DEVICE_ID', 'xiao-g2-001'),
   cameraToken: readEnv('CAMERA_TOKEN', ''),
   openaiBaseUrl: readEnv('OPENAI_BASE_URL', 'https://api.openai.com/v1', { preferEnvFile: true }).replace(/\/$/, ''),

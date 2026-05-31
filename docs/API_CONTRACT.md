@@ -150,7 +150,7 @@ Response:
 
 ### `GET /api/history/:id/image`
 
-Returns the JPEG input image saved for a history item. The backend currently stores these history entries in memory, so history is reset when the backend process restarts.
+Returns the JPEG input image saved for a history item. The backend stores history metadata and saved input images on disk under `backend/data/response-history/` by default, so website history survives backend restarts.
 
 ### `POST /api/app-state/clear`
 

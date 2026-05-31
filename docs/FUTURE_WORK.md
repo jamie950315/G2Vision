@@ -33,7 +33,7 @@ This project now has a working hardware MVP. The hosted test page, camera simula
 - Add basic access control for the hosted `/test` page before sharing the URL widely.
 - Rotate the OpenAI API key that was used during initial manual testing.
 - Add structured request logs without storing image bytes.
-- Move app recovery state, response history, and saved history input images out of in-memory storage if backend restarts must preserve website history.
+- Move the short-lived app recovery state out of in-memory storage if pending or visible app state must survive backend restarts.
 - Decide whether response history should become per-device, per-user, or account-scoped before adding multiple users or multiple G2 devices.
 
 ## 5. Test page improvements

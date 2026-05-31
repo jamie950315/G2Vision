@@ -18,6 +18,7 @@ import {
   getLatestJob,
   getLatestSeq,
   getResponseHistory,
+  loadResponseHistoryFromDisk,
   MAX_RESPONSE_HISTORY,
   storeJobInputImage,
   updateJob,
@@ -306,6 +307,8 @@ app.post(
 setInterval(cleanupOldJobs, 60_000).unref()
 
 export async function startServer(): Promise<void> {
+  loadResponseHistoryFromDisk()
+
   await loadTestPrompt().catch((error) => {
     console.warn(`Could not load test page prompt: ${error instanceof Error ? error.message : String(error)}`)
   })

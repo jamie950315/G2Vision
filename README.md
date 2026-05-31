@@ -72,7 +72,7 @@ Main screen history:
 - Double tap from waiting/result/history returns to the main screen.
 - The backend keeps the newest 100 responses and drops the oldest entry after that.
 - The backend website exposes the same response history at `/history` and `/test/history`, including the backend input image saved for each response.
-- Backend response history and saved input images are currently in memory, so restarting the backend clears the website history.
+- Backend response history and saved input images are stored under `backend/data/response-history/`, so they survive backend restarts.
 
 AI response text is normalized for the glasses display. Common LaTeX and raw math snippets are converted into readable plain text / Unicode where possible, so formulas are easier to read on the G2 text container. The prompt no longer imposes a short 300-character answer limit; app display is capped only by the Even Hub text payload limits.
 

@@ -41,7 +41,13 @@ The hosted test page saves its prompt settings to:
 backend/data/test-page-settings.json
 ```
 
-This file is also ignored by Git so manual test prompts do not become repository state.
+The hosted history page saves response metadata and input images to:
+
+```text
+backend/data/response-history/
+```
+
+These files are also ignored by Git so manual test prompts, response history, and uploaded image bytes do not become repository state.
 
 ## Hosted manual test page
 
@@ -124,7 +130,7 @@ curl -I https://g2vision.0ruka.dev/history
 curl -I https://g2vision.0ruka.dev/test/history
 ```
 
-The history page is backed by in-memory response history and saved input images, so restarting `g2vision-backend.service` clears the list.
+The history page is backed by `backend/data/response-history/`, so restarting `g2vision-backend.service` should preserve the list and saved input images.
 
 ## Real glasses and XIAO validation
 
